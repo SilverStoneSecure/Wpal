@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "chad.silverstone",
+  "name": "Wpal",
+  "version": "1.0.0",
+  "author": "chad",
+  "license": "MIT",
+  "description": "Per-workspace Background (default/custom/random) and auto-launched pane layouts for empty workspaces.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Wpal",
+    "description": "Per-workspace Background + auto-launch pane layouts.",
+    "category": "Workspace",
+    "defaultSection": "right",
+    "allowMultiple": false,
+    "defaults": {}
+  }
+}
