@@ -601,6 +601,13 @@ Panel {
     if (v) root.beginBrowsePool()
     else if (root.pendingBrowse && root.pendingBrowse.kind === "pool") root.cancelBrowse()
   }
+  // Jumps the OPEN picker straight to a folder, so the empty/populated
+  // layout can be compared without clicking through the ladder to find one.
+  function debugSetBrowseFolder(p) { browsePicker.folder = p }
+  // Same write finishBrowse's "wsPool" branch performs when a real pool pick
+  // completes -- assigns id its OWN custom background pool, for testing the
+  // shuffle's per-workspace-pool logic without clicking through the picker.
+  function debugSetWsPool(id, p) { root.updateWorkspace(id, { background: { poolFolder: p } }) }
   // Flips li's settings block (pool override + Auto Launch checkbox), as
   // either "..." does, and adds a launcher the way the preview's "+" does --
   // both are pointer-only paths otherwise.
@@ -655,13 +662,22 @@ Panel {
   // theme defaults, per Model.resolveWallpaperFolder) in one settings write
   // -- ten separate updateWorkspace calls would each trigger their own
   // widget-recreating settings write, flickering the panel ten times over.
+  // poolFolder here is each WORKSPACE'S OWN (0: "setting a custom background
+  // pool for a WS in the liE should be persistant"). This used to hardcode
+  // root.poolFolder (the global pool) for all ten, which silently overwrote
+  // every workspace's custom-pool assignment back to global on every single
+  // shuffle -- not a missing feature, an active bug. cur.background.poolFolder
+  // is already whatever li's pool picker saved (custom path, or empty/unset
+  // for a workspace that never overrode it); Service's own resolution chain
+  // (poolFolder computed property) already falls back to the global pool
+  // when this is empty, so workspaces without a custom pool are unaffected.
   function randomizeAllWorkspaces() {
     var next = Util.cloneJson(root.settings || {})
     if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
     for (var id = 1; id <= 10; id++) {
       var cur = root.wsSetting(id)
       next.workspaces[String(id)] = {
-        background: { mode: "random", path: cur.background.path, poolFolder: root.poolFolder,
+        background: { mode: "random", path: cur.background.path, poolFolder: cur.background.poolFolder,
           source: "pool", poolPath: "", outsidePath: cur.background.outsidePath },
         panes: cur.panes,
         autoLaunchEnabled: cur.autoLaunchEnabled,
@@ -1422,7 +1438,7 @@ Panel {
               textFormat: Text.PlainText
               text: "..."
               AuditTag { tag: "4"; shown: root.auditTags }
-              color: Qt.darker(root.contentForeground, 1.9)
+              color: root.contentForeground
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               font.bold: true
@@ -2099,6 +2115,19 @@ Panel {
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       focus: true
       Keys.onEscapePressed: root.escapePressed()
+      // No keyboard path into the picker at all before this (0: "allow in
+      // the fuzzy picker that a user can use the arrow buttons, and enter to
+      // select") -- mouse-only throughout. Same shape as cloneFrame's own
+      // Keys.onReturnPressed below: the frame owns the key, the content owns
+      // what it means.
+      Keys.onUpPressed: browsePicker.moveSelection(0, -1)
+      Keys.onDownPressed: browsePicker.moveSelection(0, 1)
+      Keys.onLeftPressed: browsePicker.moveSelection(-1, 0)
+      Keys.onRightPressed: browsePicker.moveSelection(1, 0)
+      Keys.onTabPressed: browsePicker.moveSelection(0, 1)
+      Keys.onBacktabPressed: browsePicker.moveSelection(0, -1)
+      Keys.onReturnPressed: browsePicker.activateSelection()
+      Keys.onEnterPressed: browsePicker.activateSelection()
 
       // The rebuilt picker, with its three switchable styles (see
       // WallpaperPicker.qml). The chosen style rides in Service so cycling it

@@ -59,6 +59,22 @@ Item {
     root.saveRequested(root.currentAppId, argsField.text)
   }
 
+  // Commit one app from the picker -- the single path shared by a mouse click
+  // and by Enter on the keyboard-driven search (0: "make arrows and tabbing
+  // work in the fuzzy search").
+  function selectApp(app) {
+    if (!app) return
+    root.clearedDraft = false
+    root.draftAppId = app.value
+    root.appChanged(app.value)
+    root.appListOpen = false
+    searchField.text = ""
+    // Hand focus straight to args so the very next Enter saves and closes
+    // (0: "focus is set on args, enter again closes the diag saves are
+    // cascaded").
+    argsField.forceActiveFocus()
+  }
+
   // Search state for the app selector below.
   property bool appListOpen: false
   property string appFilter: ""
@@ -194,23 +210,58 @@ Item {
         visible: root.appListOpen
         width: column.width
         placeholderText: "Search apps"
-        onTextChanged: root.appFilter = text
+        // Retyping refilters and drops the highlight back to the top hit, so
+        // Enter takes the best match unless you arrow/Tab away first (0: "make
+        // arrows and tabbing work in the fuzzy search").
+        onTextChanged: { root.appFilter = text; appList.currentIndex = 0 }
+        // Up/Down and Tab/Shift-Tab walk the results without leaving the box;
+        // Enter picks the highlighted one. When the list is empty Enter falls
+        // through to the panel's own Return handler (Save), untouched.
+        Keys.onUpPressed: appList.moveSelection(-1)
+        Keys.onDownPressed: appList.moveSelection(1)
+        Keys.onReturnPressed: function(event) {
+          if (root.appListOpen && appList.count > 0) {
+            root.selectApp(root.filteredApps[appList.currentIndex]); event.accepted = true
+          }
+        }
+        Keys.onEnterPressed: function(event) {
+          if (root.appListOpen && appList.count > 0) {
+            root.selectApp(root.filteredApps[appList.currentIndex]); event.accepted = true
+          }
+        }
+        // Tab would move panel focus; trap it so it steps the list instead.
+        Keys.onPressed: function(event) {
+          if (event.key === Qt.Key_Tab) { appList.moveSelection(1); event.accepted = true }
+          else if (event.key === Qt.Key_Backtab) { appList.moveSelection(-1); event.accepted = true }
+        }
       }
 
       ListView {
+        id: appList
         visible: root.appListOpen
         width: column.width
         height: Math.min(Style.space(200), contentHeight)
         clip: true
         model: root.filteredApps
+        currentIndex: 0
         boundsBehavior: Flickable.StopAtBounds
+        // Clamp-and-scroll driven by the search box's arrow/Tab keys: keeps the
+        // pick in range and always scrolled into view.
+        function moveSelection(step) {
+          if (count <= 0) return
+          currentIndex = Math.max(0, Math.min(currentIndex + step, count - 1))
+          positionViewAtIndex(currentIndex, ListView.Contain)
+        }
 
         delegate: Rectangle {
           required property var modelData
           width: ListView.view.width
           height: appName.implicitHeight + Style.spacing.xs * 2
           radius: Style.cornerRadius
-          color: appMouse.containsMouse ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
+          // Highlighted by hover OR by the keyboard cursor, so mouse and
+          // arrow/Tab navigation share one look.
+          color: (appMouse.containsMouse || ListView.isCurrentItem)
+            ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
 
           Text {
             id: appName
@@ -232,14 +283,8 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            // The click IS the selection.
-            onClicked: {
-              root.clearedDraft = false
-              root.draftAppId = modelData.value
-              root.appChanged(modelData.value)
-              root.appListOpen = false
-              searchField.text = ""
-            }
+            // The click IS the selection -- same path as keyboard Enter.
+            onClicked: root.selectApp(modelData)
           }
         }
       }

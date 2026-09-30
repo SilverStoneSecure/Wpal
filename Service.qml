@@ -229,34 +229,83 @@ Item {
   }
 
   // Global Rando Wallpaper (the config card's checkbox/shuffle button):
-  // every workspace gets its own fresh random pick from the shared source
-  // folder -- or, per Chad, the current theme's own wallpapers when none is
-  // set, which poolFolder already resolves to (see
-  // Model.resolveWallpaperFolder). One directory listing, ten independent
-  // picks assigned in a single pass (not ten sequential resolveRandom calls,
-  // which would race on the single shared randomPickProc above). Panel.qml's
-  // randomizeAllWorkspaces sets every workspace's mode to "random" against
-  // this same folder first, so previewPath() actually shows these picks;
-  // this only refreshes the cache those previews read from and re-applies
-  // the focused workspace's background live.
+  // every workspace gets its own fresh random pick -- from ITS OWN resolved
+  // pool if it has a custom one, else the shared source folder (0: "setting
+  // a custom background pool for a WS... overrides the global pool for a
+  // rendomizer push"). This used to list ONE shared folder and spray those
+  // same results across all ten workspaces, ignoring any custom pool
+  // entirely -- a real bug, not a missing feature.
+  //
+  // Grouped by resolved folder (wsConfig's poolFolder, custom-or-global
+  // fallback already built in) so a shared global pool still costs one
+  // `find`, not ten -- only workspaces with their OWN distinct custom pool
+  // add an extra lookup each. The global folder always runs first in the
+  // queue (even if no workspace resolves to it directly) so its results are
+  // ready as the fallback the moment anything else needs them: a custom pool
+  // that comes back with 0 images falls back to the global pick for that
+  // workspace; a custom pool with exactly 1 image stays pinned to it every
+  // time (0, asked directly: "use that one image every time") -- nothing to
+  // vary, but still drawn from its own pool, not overridden.
+  property var _shuffleQueue: []
+  property string _shuffleGlobalFolder: ""
+  property var _shuffleGlobalLines: []
+  property var _shuffleCache: ({})
+  property var _shuffleCurrentIds: []
+
   Process {
     id: globalRandomAllProc
     stdout: StdioCollector {
       onStreamFinished: {
         var lines = String(text || "").split("\n").filter(function(l) { return l.length > 0 })
-        if (lines.length === 0) return
-        var cache = Object.assign({}, service.randomCache)
-        for (var id = 1; id <= 10; id++) {
-          cache[String(id)] = lines[Math.floor(Math.random() * lines.length)]
+        if (service._shuffleCurrentFolder === service._shuffleGlobalFolder) {
+          service._shuffleGlobalLines = lines
         }
-        service.randomCache = cache
-        service.applyBackground(service.focusedId)
+        var useLines = lines.length > 0 ? lines : service._shuffleGlobalLines
+        var ids = service._shuffleCurrentIds
+        for (var i = 0; i < ids.length; i++) {
+          if (useLines.length > 0) service._shuffleCache[String(ids[i])] = useLines[Math.floor(Math.random() * useLines.length)]
+        }
+        service._shuffleStep()
       }
     }
   }
 
   function randomizeAllWorkspacesOnce() {
-    globalRandomAllProc.command = service.findImagesCommandFor(service.poolFolder)
+    var globalFolder = service.poolFolder
+    var byFolder = {}
+    for (var id = 1; id <= 10; id++) {
+      var folder = service.wsConfig(id).background.poolFolder
+      if (!byFolder[folder]) byFolder[folder] = []
+      byFolder[folder].push(id)
+    }
+    // Global first, always, even with an empty id list -- guarantees
+    // _shuffleGlobalLines is populated before any custom pool needs it as a
+    // fallback.
+    var queue = [{ folder: globalFolder, ids: byFolder[globalFolder] || [] }]
+    delete byFolder[globalFolder]
+    for (var f in byFolder) queue.push({ folder: f, ids: byFolder[f] })
+    service._shuffleQueue = queue
+    service._shuffleGlobalFolder = globalFolder
+    service._shuffleGlobalLines = []
+    service._shuffleCache = {}
+    service._shuffleStep()
+  }
+
+  // One folder at a time -- Quickshell's Process is one command in flight at
+  // once, and there's no benefit to true parallelism for a handful of quick
+  // local `find`s.
+  property string _shuffleCurrentFolder: ""
+  function _shuffleStep() {
+    if (service._shuffleQueue.length === 0) {
+      var cache = Object.assign({}, service.randomCache, service._shuffleCache)
+      service.randomCache = cache
+      service.applyBackground(service.focusedId)
+      return
+    }
+    var next = service._shuffleQueue.shift()
+    service._shuffleCurrentFolder = next.folder
+    service._shuffleCurrentIds = next.ids
+    globalRandomAllProc.command = service.findImagesCommandFor(next.folder)
     globalRandomAllProc.running = true
   }
 

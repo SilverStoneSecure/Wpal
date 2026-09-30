@@ -141,11 +141,10 @@ Item {
 
       // The number, over the preview and behind everything that means
       // something: the tile grid, its commands and the per-tile hovers all sit
-      // above this and are untouched. A DIFFERENT theme colour from the tile
-      // work (accent, not foreground), held well back so it reads as a
-      // watermark rather than a label. Inert by construction -- it is a Text,
-      // it takes no input, and the card's own click and the per-tile command
-      // hovers pass straight through it.
+      // above this and are untouched. Held well back (low alpha, see below) so
+      // it reads as a watermark rather than a label. Inert by construction --
+      // it is a Text, it takes no input, and the card's own click and the
+      // per-tile command hovers pass straight through it.
       Text {
         z: 1
         // EVERY card carries its number (0: "YOU LOST THE LIST ITEM NUMBERS").
@@ -157,15 +156,16 @@ Item {
         anchors.centerIn: parent
         textFormat: Text.PlainText
         text: root.workspaceId === 10 ? "0" : String(root.workspaceId)
-        // The number says whether this workspace will auto launch (0: "change
-        // the color of the li numbers to tc reddish when auto launch is on for
-        // its WS. and grey when AL is disabled"): the toggle's own red when it
-        // is live, plain grey when the global switch or this workspace's own is
-        // off. Sizes are 0's: "to" 70%, then 75% of that, then 85% of that;
-        // alpha 25% up a quarter twice, with the outline carrying it over a
-        // bright thumbnail.
-        readonly property color wmColor: root.launchEnabled ? "#e08a8a" : "#b6b6b6"
-        color: Qt.rgba(wmColor.r, wmColor.g, wmColor.b, 0.39)
+        // The number says whether this workspace will auto launch (0, this
+        // pass: "when auto launch is ON, make them a light tc, contrast up 20%
+        // for visibility. When G AL is OR WS AL is off, make the number color
+        // red, inc contrast 20% as well" -- superseding the earlier
+        // red-when-ON/grey-when-OFF scheme, which read backwards). `launchEnabled`
+        // is `Panel.launchEnabledFor`, already Global AND this workspace's own
+        // switch together, so no separate G/WS check is needed here.
+        readonly property color wmColor: root.launchEnabled ? root.foreground : "#e08a8a"
+        // 0.39 baseline, +20% contrast = ~0.47, same bump for both states.
+        color: Qt.rgba(wmColor.r, wmColor.g, wmColor.b, 0.47)
         // A flat tint vanished over a bright wallpaper -- the same trap that
         // hid the full-screen toggle and the ✕. A dark outline carries it on
         // a sunset thumbnail without making it any louder on a dark one.

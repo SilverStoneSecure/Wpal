@@ -193,6 +193,25 @@ Item {
     return args !== "" ? args : "(not set)"
   }
 
+  // li's own tile label, NOT paneDesc() -- that one stays as-is for
+  // fsHoverList's single-line summary and the tooltip's separate "args: X"
+  // format. Here args get a forced break and a "--" marker (0: "if args
+  // exist for a cmd, line wrap it and put a -- before the args"), landing on
+  // their own line inside the tile's existing wrap (LaunchLayoutOverlay's
+  // cmdText: 3 lines, then elide). A command-only pane (empty app, args
+  // typed straight into the args box -- see AL's ssh recipe) has no separate
+  // name to break from, so it's untouched.
+  function paneDescWrapped(idx) {
+    var p = root.cfg.panes[idx]
+    if (!p) return "(not set)"
+    var args = String(p.args || "").trim()
+    if (p.appId !== "") {
+      var name = root.appLabelFor(p.appId)
+      return args !== "" ? (name + "\n-- " + args) : name
+    }
+    return args !== "" ? args : "(not set)"
+  }
+
   function paneHasData(idx) {
     var p = root.cfg.panes[idx]
     return !!p && (p.appId !== "" || p.args.trim() !== "")
@@ -333,11 +352,15 @@ Item {
   }
   onHoverRectsRawChanged: root.syncHoverRects()
   Component.onCompleted: root.syncHoverRects()
-  // On-tile label per hoverRects entry -- the pane's own command/app name
-  // instead of a position number (0: "remove the numbers, replace with the
-  // command"). "" for a tile with nothing configured (hides it).
+  // On-tile label per hoverRects entry -- the pane's own command/app name,
+  // carried back onto the same "N. " position number main's cards never lost
+  // (0: "bring back the li numbers inside the preview on main. carry over the
+  // number onto the li editor scale it appropriately" -- same "N. " format as
+  // fsHoverList above, not the bare "N" main uses, since this tile still
+  // needs room for the command text after it). "" for a tile with nothing
+  // configured (hides it).
   readonly property var launchLabels: root.hoverRects.map(function(r, i) {
-    return root.paneHasData(i) ? root.paneDesc(i) : ""
+    return root.paneHasData(i) ? (i + 1) + ". " + root.paneDescWrapped(i) : ""
   })
   // That one launcher's own info (app/command + args), noting when it's
   // the full-screen pick. "" hides the tooltip (nothing configured there).
@@ -554,17 +577,19 @@ Item {
     }
 
     // The "Change Wallpaper" pill that used to sit here is gone (0: "lose the
-    // Change Wallpaper pill, set does the job") -- "Set" on the preview opens
-    // the picker for this workspace's pool. In its place, the first of the
-    // two "..." triggers for li's settings block, right under the first
-    // delimiter where 0 asked for it.
+    // Change Wallpaper pill, set does the job") -- "Set" opens the picker for
+    // this workspace's pool. In its place, the first of the two "..." triggers
+    // for li's settings block, right under the first delimiter where 0 asked
+    // for it.
     Item {
       width: column.width
-      // The row is as tall as the taller of the two, ALWAYS -- `implicitHeight`
+      // The row is as tall as the tallest of these, ALWAYS -- `implicitHeight`
       // is read whether or not the "+" is showing, so li does not change height
-      // when the fourth launcher makes it disappear.
-      implicitHeight: Math.max(settingsDots.implicitHeight,
-        Math.max(addLauncherButton.implicitHeight, poolResetButton.implicitHeight))
+      // when the fourth launcher makes it disappear. setButton is the same
+      // size as addLauncherButton by construction, but included for safety.
+      implicitHeight: Math.max(settingsDots.implicitHeight, Math.max(
+        addLauncherButton.implicitHeight, Math.max(
+          poolResetButton.implicitHeight, setButton.implicitHeight)))
 
       // Add the next launcher. Deliberately NOT gated on Auto Launch being on:
       // li is meant to be editable with the switches off, and with the gate on
@@ -581,8 +606,9 @@ Item {
         bordered: true
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
-        // Still matched to "Set" on the preview, so the two read as a pair
-        // even now that they are not on the same surface.
+        // Still width-matched to "Set" even though it has since moved to the
+        // far right of this row (0, this pass: "move the Set button to the
+        // right of the .. on the liE") -- kept for consistent pill sizing.
         implicitWidth: setButton.implicitWidth
         // Counts up as slots fill, and the button itself vanishes at 4 (0).
         property bool tipOn: false
@@ -595,6 +621,32 @@ Item {
         onClicked: root.addPane()
       }
 
+      // "Set" moved out from inside the preview onto this row first, then
+      // past the "..." to the row's own right edge (0, this pass: "move the
+      // Set button to the right of the .. on the liE") -- now the rightmost
+      // control, with poolResetButton and settingsDots making room for it
+      // below instead of anchoring straight to parent.right.
+      Button {
+        id: setButton
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: "Set BG"
+        AuditTag { tag: "4d"; shown: root.auditTags; below: true }
+        bordered: true
+        foreground: root.foreground
+        horizontalPadding: Style.spacing.sm
+        property bool tipOn: false
+        onHovered: function(isHovered) { setButton.tipOn = isHovered }
+        SsToolTip {
+          visible: setButton.tipOn
+          // Literal (0, this pass): "hover on the set button is 'Set
+          // BackGround for WS <N>'" -- same WS-number format as the pool
+          // picker's own tooltip above.
+          text: "Set BackGround for WS " + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
+        }
+        onClicked: if (root.outsideSelected) root.browseImageRequested(); else root.browsePoolRequested()
+      }
+
       // Back to the Global pool. This is the control the picker's "Use
       // Default" used to be, re-homed here when that button row went down to
       // one (0 chose to keep it rather than drop it with the dead props). It
@@ -603,7 +655,9 @@ Item {
       Button {
         id: poolResetButton
         visible: root.poolOverridden
-        anchors.right: parent.right
+        // Sits left of "Set" now that Set owns the row's true right edge.
+        anchors.right: setButton.left
+        anchors.rightMargin: Style.spacing.controlGap
         anchors.verticalCenter: parent.verticalCenter
         text: "Global"
         bordered: true
@@ -624,12 +678,12 @@ Item {
         id: settingsDots
         AuditTag { tag: "3"; shown: root.auditTags }
         // Right-justified now (0: "right just ify the ... on the li Editor"),
-        // matching the main panel's own "..." row. It steps aside for the
-        // "Global" reset button when that one is showing, since they share
-        // this row's right end.
+        // matching the main panel's own "..." row. It steps aside for "Set"
+        // (always) and "Global" (when that's showing too), since all three
+        // share this row's right end, in that order: ... | Global | Set.
         anchors.right: parent.right
-        anchors.rightMargin: poolResetButton.visible
-          ? poolResetButton.width + Style.spacing.controlGap : 0
+        anchors.rightMargin: setButton.width + Style.spacing.controlGap +
+          (poolResetButton.visible ? poolResetButton.width + Style.spacing.controlGap : 0)
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.PlainText
         text: "..."
@@ -729,6 +783,39 @@ Item {
             font.pixelSize: Style.font.body
           }
 
+          // The workspace number, carried onto li's own preview too (0: "make
+          // the numbers follow to the liE preview page, scale x2 on touch they
+          // do nothing, make the numbers 50%less trans. they should be a soft
+          // tc color, when enabled, and that reddish when diabled in a Lie,
+          // keep main alone for its colors for now"). Same watermark idiom as
+          // main's WorkspaceCard: a plain Text with no MouseArea, so clicks and
+          // the tile grid's own hovers pass straight through it -- declared
+          // here, before LaunchLayoutOverlay, so it paints BEHIND the tile grid
+          // instead of over it.
+          Text {
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: root.workspaceId === 10 ? "0" : String(root.workspaceId)
+            // Enabled: a soft tc tone -- the same Qt.darker(foreground, 1.5)
+            // "secondary" idiom li's own Auto Launch label uses below.
+            // Disabled: the reddish li already uses everywhere else for
+            // launchLive (its own Auto Launch row, the preview's disabled tile
+            // outline) -- deliberately NOT main's inverted red-when-ON scheme,
+            // which 0 said to leave alone for now.
+            readonly property color wmColor: root.launchLive
+              ? Qt.darker(root.foreground, 1.5) : "#e08a8a"
+            // Main's watermark sits at 0.39 alpha; 50% less transparent lands
+            // at ~0.7.
+            color: Qt.rgba(wmColor.r, wmColor.g, wmColor.b, 0.7)
+            style: Text.Outline
+            styleColor: Qt.rgba(0, 0, 0, 0.47)
+            font.family: Style.font.family
+            // Main's own formula, doubled (0: "scale x2"), against the
+            // preview's own height instead of a card's.
+            font.pixelSize: Math.round(parent.height * 0.72 * 0.70 * 0.75 * 0.85 * 2)
+            font.bold: true
+          }
+
           // Where the auto-launched windows will tile (2+ windows), and which
           // one (if any) opens full screen.
           LaunchLayoutOverlay {
@@ -741,6 +828,9 @@ Item {
             visible: root.launchCount > 0
             rects: root.hoverRects
             lineColor: root.foreground
+            // Contrast against whatever's behind it (0: "change color of cmd
+            // on lie to contrast its bg") -- main leaves this off.
+            labelOutline: true
             // Frozen while a tile is landing, so the async swap never flips a
             // label under the flight.
             labels: root.landTo >= 0 ? root.landLabels : root.launchLabels
@@ -750,8 +840,12 @@ Item {
             // glyph").
             // Three quarters of what it was (0: "reduce the sice of the li
             // items by 75%") -- 11px -> 8px, which also gives a long command
-            // room to wrap inside its tile.
-            labelPixelSize: Math.max(Style.space(6), Math.round(Style.font.bodySmall * 0.75))
+            // room to wrap inside its tile. Then +50% (0: "inc text size on
+            // liE cmd preview AND hitbox by 50%") -- MUST stay identical to
+            // gripText's font.pixelSize below, which measures this exact
+            // label to size its hitbox.
+            labelPixelSize: Math.round(Math.max(Style.space(6),
+              Math.round(Style.font.bodySmall * 0.75)) * 1.5)
             fullscreenIndex: root.landTo >= 0 ? root.landFs
               : (root.fsEligible ? root.fsSlot : -1)
             // Left at the overlay's own white default -- no orange here any more.
@@ -844,11 +938,13 @@ Item {
               // that plus a hair, and never wider than the tile.
               // A floor, so a one-word command is still grabbable, and a
               // ceiling at the tile itself (0: "add space to the hitbox like
-              // you said before use your suggestion").
+              // you said before use your suggestion"). The ink-plus-a-hair box
+              // itself is then +50% (0: "inc text size on liE cmd preview AND
+              // hitbox by 50%"), still floored and still capped at the tile.
               readonly property real inkW: Math.min(modelData[2] * previewBox.width - 2,
-                Math.max(Style.space(40), gripText.paintedWidth + Style.space(4)))
+                Math.max(Style.space(40), gripText.paintedWidth + Style.space(4)) * 1.5)
               readonly property real inkH: Math.min(modelData[3] * previewBox.height - 2,
-                Math.max(Style.space(14), gripText.paintedHeight + Style.space(2)))
+                Math.max(Style.space(14), gripText.paintedHeight + Style.space(2)) * 1.5)
               // The label sits in a centred Column; when this tile is the
               // full-screen pick the "(fullscreen)" caption below it pushes the
               // command up by half the caption's height.
@@ -873,7 +969,9 @@ Item {
                 textFormat: Text.PlainText
                 text: root.paneHasData(index) ? root.paneDesc(index) : ""
                 font.family: Style.font.family
-                font.pixelSize: Math.max(Style.space(6), Math.round(Style.font.bodySmall * 0.75))
+                // MUST match labelPixelSize above exactly -- see its comment.
+                font.pixelSize: Math.round(Math.max(Style.space(6),
+                  Math.round(Style.font.bodySmall * 0.75)) * 1.5)
               }
               visible: root.paneHasData(index) && root.launchCount >= 2
               enabled: visible
@@ -1110,29 +1208,12 @@ Item {
           // it used to reach now drops in place under the top dots instead.
 
           // Opens the wallpaper picker for whichever source this workspace is
-          // on, top-right. With no launchers set the preview has no panes on it,
-          // so clicking the image itself does the same thing.
-          // Bottom-right, not top-right: the per-tile ✕ owns that corner now
-          // (0: "I moved the set to the bottom because the x would clash").
-          Button {
-            id: setButton
-            AuditTag { tag: "4d"; shown: root.auditTags; below: true }
-            anchors.bottom: parent.bottom
-            anchors.right: parent.right
-            anchors.margins: Style.spacing.sm
-            text: "Set"
-            bordered: true
-            foreground: root.foreground
-            background: Qt.rgba(0, 0, 0, 0.55)
-            horizontalPadding: Style.spacing.sm
-            // SsToolTip, so it is clamped inside li instead of running past
-            // the frame from the preview's bottom-right corner.
-            SsToolTip {
-              visible: setButton.hot
-              text: "Set Background for\nWorkSpace"
-            }
-            onClicked: if (root.outsideSelected) root.browseImageRequested(); else root.browsePoolRequested()
-          }
+          // on. "Set" itself is gone from here now -- out on the settings row
+          // above, beside "+" (0: "move the Set button to outside the li
+          // editor preview ... same as the plus to the left"), the pairing
+          // already anticipated where "+" was matched to setButton's width.
+          // With no launchers set the preview has no panes on it, so clicking
+          // the image itself still opens the same picker.
 
           // The launcher editor is its own panel beside li now
           // (AutoLaunchConfig.qml, opened by Panel when expandedSlot >= 0), not a

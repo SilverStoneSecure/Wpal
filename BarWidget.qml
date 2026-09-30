@@ -117,6 +117,17 @@ BarWidget {
     function debugBrowseRepo(v: string): void {
       if (panelLoader.item) panelLoader.item.debugBrowseRepo(v === "true")
     }
+    function debugSetBrowseFolder(p: string): void {
+      if (panelLoader.item) panelLoader.item.debugSetBrowseFolder(p)
+    }
+    function debugSetWsPool(id: int, p: string): void {
+      if (panelLoader.item) panelLoader.item.debugSetWsPool(id, p)
+    }
+    // Presses the "Shuffle Backgrounds" glyph -- no way to synthesize that
+    // click from here either.
+    function debugShuffleAll(): void {
+      if (panelLoader.item) panelLoader.item.shuffleGlobalWallpaper()
+    }
     function debugAuditTags(v: string): void {
       var svc = root.bar && root.bar.shell ? root.bar.shell.serviceFor(root.moduleName) : null
       if (svc) svc.auditTags = (v === "true")

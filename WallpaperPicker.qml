@@ -67,8 +67,50 @@ Item {
   // The image under the pointer (or the selected one), shown in whichever
   // preview the current style has.
   property string hoverPath: ""
-  onFolderChanged: { root.hoverPath = ""; root.sheetHover = "" }
+  onFolderChanged: { root.hoverPath = ""; root.sheetHover = ""; root.selectedIndex = -1 }
   readonly property string shownPath: root.hoverPath !== "" ? root.hoverPath : root.currentPath
+
+  // Keyboard cursor into whichever grid/list is actually showing (0: "allow
+  // in the fuzzy picker that a user can use the arrow buttons, and enter to
+  // select"). -1 = nothing highlighted yet -- the first arrow press just
+  // lands on index 0 rather than moving from it. Panel.qml's pickerFrame
+  // owns the real Keys handlers (same place Escape is already wired) and
+  // calls moveSelection()/activateSelection() below; there was no keyboard
+  // path into this picker at all before this pass, mouse-only throughout.
+  property int selectedIndex: -1
+  // Contact Sheet is a fixed three-across grid (see sheet.cellWidth below);
+  // the ladder is one column. Only these two default, reachable views get a
+  // keyboard cursor -- V1/V2/Stage and the chip-rail pool style are
+  // debug-only alternates nobody hits day to day.
+  readonly property int selectionCols: root.pickFiles ? 3 : 1
+  readonly property int selectionCount: root.pickFiles ? imageModel.count : dirModel.count
+
+  function moveSelection(dx, dy) {
+    var count = root.selectionCount
+    if (count === 0) return
+    if (root.selectedIndex < 0) { root.selectedIndex = 0; return }
+    var next = root.selectedIndex + dx + dy * root.selectionCols
+    root.selectedIndex = Math.max(0, Math.min(count - 1, next))
+    if (root.pickFiles) sheet.positionViewAtIndex(root.selectedIndex, GridView.Contain)
+    else ladder.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+  }
+
+  // Delegates aren't exposed through the model itself (FolderListModel has
+  // no get()/data() from JS) -- itemAtIndex reads the actual instantiated
+  // delegate, same fileName/fileIsDir every click handler here already uses.
+  function activateSelection() {
+    if (root.selectedIndex < 0 || root.selectedIndex >= root.selectionCount) return
+    if (root.pickFiles) {
+      var cell = sheet.itemAtIndex(root.selectedIndex)
+      if (!cell) return
+      if (cell.fileIsDir) root.folder = folderModel.currentPath + "/" + cell.fileName
+      else root.chosen(folderModel.currentPath + "/" + cell.fileName)
+    } else {
+      var rung = ladder.itemAtIndex(root.selectedIndex)
+      if (!rung) return
+      root.folder = folderModel.currentPath + "/" + rung.fileName
+    }
+  }
 
   implicitWidth: column.width
   implicitHeight: column.implicitHeight
@@ -386,9 +428,18 @@ Item {
     // the pictures are evidence, not controls; the ladder moves you and "Use
     // this Folder" takes the folder. The list itself does not drag-scroll
     // either: the two arrows page it, one screenful at a time.
+    //
+    // ALWAYS visible in pool mode now, empty folder or not (0: "the custom
+    // pool picker thrashes when theres no images in a folder... open the
+    // diag large enough for the slide to have space when no images are
+    // there. and not thrash"). This used to collapse to zero height on an
+    // empty folder -- same class of bug the ladder below was already fixed
+    // for ("FOUR rows, always"). Since the dialog's own height is
+    // content-driven off this column, reserving the strip's space here is
+    // the whole fix; nothing in Panel.qml needs to change.
     RowLayout {
       id: stripRow
-      visible: !root.pickFiles && imageModel.count > 0
+      visible: !root.pickFiles
       width: column.width
       spacing: Style.spacing.xs
 
@@ -416,6 +467,18 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         spacing: Style.spacing.xs
         model: imageModel
+
+        // Sits in the strip's own reserved space instead of letting it
+        // collapse -- same tone as the ladder's own empty-state line below.
+        Text {
+          anchors.centerIn: parent
+          visible: imageModel.count === 0
+          textFormat: Text.PlainText
+          text: "(no images in this folder)"
+          color: Qt.darker(root.foreground, 1.8)
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
+        }
 
         function page(dir) {
           var maxX = Math.max(0, contentWidth - width)
@@ -501,10 +564,12 @@ Item {
           id: rung
           required property string fileName
           required property bool fileIsDir
+          required property int index
           width: ListView.view.width
           height: poolLadder.rowH
           radius: Style.cornerRadius
-          color: rungMouse.containsMouse
+          // Keyboard cursor OR mouse hover, whichever's live.
+          color: (index === root.selectedIndex || rungMouse.containsMouse)
             ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
 
           Text {
@@ -687,7 +752,8 @@ Item {
           anchors.margins: Style.spacing.xs / 2
           radius: Style.cornerRadius
           color: fileIsDir ? Qt.rgba(0, 0, 0, 0.25) : Qt.darker(root.foreground, 3)
-          border.width: cellMouse.containsMouse ? 2 : 0
+          // Keyboard cursor OR mouse hover, whichever's live.
+          border.width: (parent.index === root.selectedIndex || cellMouse.containsMouse) ? 2 : 0
           border.color: root.foreground
           clip: true
 

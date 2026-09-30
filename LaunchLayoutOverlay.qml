@@ -102,6 +102,11 @@ Item {
   // "(fullscreen)" under the label doesn't fit on a card-sized thumbnail; the
   // tile's own tint and border still mark the pick there.
   property bool showFsCaption: true
+  // A flat label colour washes out over some wallpapers (0: "change color of
+  // cmd on lie to contrast its bg") -- same trap as the watermark numbers,
+  // same fix: a dark outline. Off by default so main's tiny per-tile order
+  // numbers are untouched; li turns it on for its command labels.
+  property bool labelOutline: false
 
   Repeater {
     model: root.rects
@@ -243,6 +248,10 @@ Item {
           // The command and its args take the accent while the pointer is on
           // their grip (0: "on hover, change the color of the cmd and arg").
           color: tile.labelHot ? Color.accent : root.lineColor
+          // Same dark-outline trick as the watermark numbers, gated off for
+          // main (see labelOutline above).
+          style: root.labelOutline ? Text.Outline : Text.Normal
+          styleColor: Qt.rgba(0, 0, 0, 0.47)
           font.family: Style.font.family
           font.pixelSize: root.labelPixelSize
 
@@ -278,6 +287,8 @@ Item {
           // Same colour as the command above it; the tile's own accent
           // tint/border is what still pops.
           color: root.lineColor
+          style: root.labelOutline ? Text.Outline : Text.Normal
+          styleColor: Qt.rgba(0, 0, 0, 0.47)
           font.family: Style.font.family
           font.pixelSize: root.labelPixelSize
         }
