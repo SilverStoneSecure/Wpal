@@ -68,7 +68,9 @@ Panel {
   readonly property bool randomizeRevealed: root.service ? root.service.randomizeRevealed === true : false
   readonly property bool randomizeArmed: root.service ? root.service.randomizeArmed === true : false
   // Walkthru audit tags (see AuditTag.qml). Default ON, per 0.
-  readonly property bool auditTags: root.service ? root.service.auditTags !== false : true
+  // Fallback matches Service.qml's stated default (OFF) instead of ON --
+  // no service yet should never mean "show the walkthru labels".
+  readonly property bool auditTags: root.service ? root.service.auditTags !== false : false
   // "default" checkbox on the Custom Actions tile: when on, the shell starts
   // in Custom (SS-Behaviour) regardless of the mode saved last -- applied once
   // per shell start by Service.applyStartupMode.
@@ -358,14 +360,39 @@ Panel {
   // The live service, for read-only preview data (current wallpaper per
   // workspace, cached random picks) and to trigger an immediate reroll.
   // Not used for writes -- those always go through updateWorkspace below.
-  readonly property var service: root.bar && root.bar.shell
-    ? root.bar.shell.serviceFor(root.moduleName) : null
+  //
+  // Not a plain binding: serviceFor() is an ordinary function call, not a
+  // bindable property read, so QML has no way to notice when the service
+  // singleton comes up after this expression already evaluated once. Traced
+  // live (2026-09-30, SilverAsus first-ever launch): `bar`/`bar.shell` are
+  // both ready well before serviceFor(moduleName) starts returning non-null
+  // -- the service-kind entry point is still being constructed on its own
+  // schedule when this panel's cards already need it, so refreshing only on
+  // bar/opened events can catch every one of those events before the service
+  // exists and never get called again. serviceRetryTimer polls at 150ms
+  // until it succeeds, then stops -- self-healing regardless of which side
+  // wins the race, one-time cost only on a cold panel, no more than a few
+  // ticks in the worst case observed.
+  property var service: null
+  function refreshService() {
+    root.service = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
+  }
+  Component.onCompleted: root.refreshService()
+  onBarChanged: root.refreshService()
+  Timer {
+    id: serviceRetryTimer
+    interval: 150
+    repeat: true
+    running: !root.service
+    onTriggered: root.refreshService()
+  }
 
   // Keep the service's open-intent in sync with reality, and restore it the
   // moment a fresh instance gets a service reference -- a settings write the
   // bar host can't patch in place destroys and recreates the bar-widget/
   // panel instance, but the service (a kept instance) survives that.
   onOpenedChanged: {
+    root.refreshService()
     if (root.service) root.service.panelOpenIntent = root.opened
     // Pressing the bar glyph while anything of ours is open shuts the lot and
     // resets to first-open state -- no picker, no li, no launcher editor, no
@@ -604,6 +631,8 @@ Panel {
   // Jumps the OPEN picker straight to a folder, so the empty/populated
   // layout can be compared without clicking through the ladder to find one.
   function debugSetBrowseFolder(p) { browsePicker.folder = p }
+  // li's "..." -> pool pick, without a pointer.
+  function debugBrowseWsPool(id) { root.beginBrowseWsPool(id) }
   // Same write finishBrowse's "wsPool" branch performs when a real pool pick
   // completes -- assigns id its OWN custom background pool, for testing the
   // shuffle's per-workspace-pool logic without clicking through the picker.
@@ -662,22 +691,34 @@ Panel {
   // theme defaults, per Model.resolveWallpaperFolder) in one settings write
   // -- ten separate updateWorkspace calls would each trigger their own
   // widget-recreating settings write, flickering the panel ten times over.
-  // poolFolder here is each WORKSPACE'S OWN (0: "setting a custom background
-  // pool for a WS in the liE should be persistant"). This used to hardcode
-  // root.poolFolder (the global pool) for all ten, which silently overwrote
-  // every workspace's custom-pool assignment back to global on every single
-  // shuffle -- not a missing feature, an active bug. cur.background.poolFolder
-  // is already whatever li's pool picker saved (custom path, or empty/unset
-  // for a workspace that never overrode it); Service's own resolution chain
-  // (poolFolder computed property) already falls back to the global pool
-  // when this is empty, so workspaces without a custom pool are unaffected.
+  // poolFolder here is each WORKSPACE'S OWN RAW value (0: "setting a custom
+  // background pool for a WS in the liE should be persistant... when I set
+  // global pool, all wallpapers randomize from the global pool that is set,
+  // NOT THE DEFAULT"). This used to hardcode root.poolFolder (the global
+  // pool) for all ten -- silently overwrote every custom-pool assignment.
+  // Fixed once already by preserving wsSetting()'s poolFolder instead --
+  // WRONG, because wsSetting() routes through Model.normalizeBackground,
+  // which does `bg.poolFolder || defaultFolder` and so NEVER returns empty.
+  // That "fix" was writing back a resolved snapshot for every workspace,
+  // every shuffle -- indistinguishable from a real custom pool afterward, so
+  // a later change to the GLOBAL pool stopped reaching any workspace that
+  // had ever been shuffled once. Reading the RAW stored value here (empty
+  // when a workspace was never given its own pool) is what actually keeps
+  // "no override" workspaces following the global pool live, forever, while
+  // still preserving a genuine override -- matching what CustomizeDialog's
+  // own poolOverridden check already treats as the "not customized" sentinel
+  // (empty string) everywhere else in this file.
   function randomizeAllWorkspaces() {
     var next = Util.cloneJson(root.settings || {})
     if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
     for (var id = 1; id <= 10; id++) {
       var cur = root.wsSetting(id)
+      var rawWs = (root.settings && root.settings.workspaces) ? root.settings.workspaces[String(id)] : null
+      var rawBg = (rawWs && rawWs.background) || {}
+      var rawPool = rawBg.poolFolder !== undefined ? rawBg.poolFolder
+        : (rawBg.sourceFolder !== undefined ? rawBg.sourceFolder : "")
       next.workspaces[String(id)] = {
-        background: { mode: "random", path: cur.background.path, poolFolder: cur.background.poolFolder,
+        background: { mode: "random", path: cur.background.path, poolFolder: rawPool,
           source: "pool", poolPath: "", outsidePath: cur.background.outsidePath },
         panes: cur.panes,
         autoLaunchEnabled: cur.autoLaunchEnabled,
@@ -996,7 +1037,12 @@ Panel {
     // the dismiss area still follow `opened`, never `visible` -- otherwise the
     // user stays locked out for the duration of the fade.
     visible: root.opened || cardFrame.opacity > 0
-    screen: root.anchorItem && root.anchorItem.QsWindow ? root.anchorItem.QsWindow.window.screen : null
+    // Guards the extra .window hop too: on a cold start anchorItem.QsWindow
+    // can exist before .window itself does, throwing "Cannot read property
+    // 'screen' of null" for one tick. Harmless/self-healing (this binding
+    // re-fires once .window is set), but the null-check costs nothing.
+    screen: (root.anchorItem && root.anchorItem.QsWindow && root.anchorItem.QsWindow.window)
+      ? root.anchorItem.QsWindow.window.screen : null
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "silverstone-strip"
@@ -1404,9 +1450,16 @@ Panel {
               fontFamily: Style.font.family
               fontSize: Style.font.bodySmall
               verticalPadding: Style.spacing.controlPaddingY
+              // Only "Wpal" gets a hover while selected (0: "in custom mode,
+              // on hover on mode button Wpal... 'Your Already in the
+              // Goodness'") -- "Omarchy" above keeps the original rule (no
+              // hover text on the mode you're already in), 0 didn't ask for
+              // that one to change.
               SsToolTip {
-                visible: silverstoneModeButton.hot && !silverstoneModeButton.selected
-                text: "Per-WorkSpace Backgrounds\nand AutoLaunch"
+                visible: silverstoneModeButton.hot
+                text: silverstoneModeButton.selected
+                  ? "You're already in the Goodness"
+                  : "Per-WorkSpace Backgrounds\nand AutoLaunch"
               }
               onClicked: root.setMasterEnabled(true)
             }
@@ -1922,7 +1975,6 @@ Panel {
         randomizedOnce: root.randomizedOnce
         auditTags: root.auditTags
         fsSlot: root.launchFsIndexFor(root.activeWorkspace)
-        globalPoolFolder: root.poolFolder
         // li stops taking clicks while either of its side panels is open.
         childOpen: root.childPanelOpen
         onExpandedSlotChanged: if (root.service) root.service.expandedSlotIntent = workspaceContent.expandedSlot
@@ -1933,7 +1985,6 @@ Panel {
           if (root.pendingBrowse && root.pendingBrowse.kind === "wsPool") { root.cancelBrowse(); return }
           root.beginBrowseWsPool(root.activeWorkspace)
         }
-        onPoolResetRequested: root.clearWsPool(root.activeWorkspace)
         // The inline pool picker inside li, not the side picker panel.
         onPoolChosen: function(p) { root.updateWorkspace(root.activeWorkspace, { background: { poolFolder: p } }) }
         onPanesSwapRequested: function(from, to) { root.swapPanes(root.activeWorkspace, from, to) }
@@ -2158,6 +2209,13 @@ Panel {
           root.cancelBrowse()
         }
         onCancelled: root.cancelBrowse()
+        // Both resets moved in here from li's own settings row (0: "move the
+        // Global Button out of LIE and into the picker... add a revert to
+        // default button to the picker"). workspaceId is already the
+        // resolved wsPool target above, so it's reused as-is rather than
+        // re-deriving it from pendingBrowse a second time.
+        onPoolResetRequested: root.clearWsPool(browsePicker.workspaceId)
+        onGlobalPoolResetRequested: root.setPoolFolder("")
       }
     }
   }

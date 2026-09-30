@@ -99,7 +99,6 @@ Item {
   // Per-workspace wallpaper pool (0: "we lost the override global, sort that
   // out select a pool just for this workspace"), behind the "..." below.
   signal poolPickRequested()
-  signal poolResetRequested()
   // A folder chosen in the inline pool picker that drops in where the preview
   // is, rather than in a separate picker panel.
   signal poolChosen(string path)
@@ -315,13 +314,6 @@ Item {
   readonly property int launchCount: Model.configuredCount(root.cfg.panes)
   readonly property bool launchLive: root.autoLaunchEnabled && root.cfg.autoLaunchEnabled
 
-  // This workspace's own pool, if it differs from the global one (poolFolder
-  // itself is declared above, with the source-folder block).
-  property string globalPoolFolder: ""
-  readonly property bool poolOverridden: root.poolFolder !== "" && root.poolFolder !== root.globalPoolFolder
-  readonly property string poolLabel: root.poolOverridden
-    ? root.poolFolder.split("/").pop()
-    : "Global"
   readonly property var launchOptions: Model.launchLayouts(root.launchCount)
   readonly property int launchLayoutIdx: Model.launchLayoutIndex(root.launchCount, root.cfg.launchLayout)
   // During a rebuild launchOptions and launchLayoutIdx can update a beat
@@ -587,9 +579,8 @@ Item {
       // is read whether or not the "+" is showing, so li does not change height
       // when the fourth launcher makes it disappear. setButton is the same
       // size as addLauncherButton by construction, but included for safety.
-      implicitHeight: Math.max(settingsDots.implicitHeight, Math.max(
-        addLauncherButton.implicitHeight, Math.max(
-          poolResetButton.implicitHeight, setButton.implicitHeight)))
+      implicitHeight: Math.max(settingsDots.implicitHeight,
+        Math.max(addLauncherButton.implicitHeight, setButton.implicitHeight))
 
       // Add the next launcher. Deliberately NOT gated on Auto Launch being on:
       // li is meant to be editable with the switches off, and with the gate on
@@ -647,43 +638,19 @@ Item {
         onClicked: if (root.outsideSelected) root.browseImageRequested(); else root.browsePoolRequested()
       }
 
-      // Back to the Global pool. This is the control the picker's "Use
-      // Default" used to be, re-homed here when that button row went down to
-      // one (0 chose to keep it rather than drop it with the dead props). It
-      // only exists while this workspace HAS its own pool -- with nothing
-      // overridden there is nothing to reset, so it stays out of the way.
-      Button {
-        id: poolResetButton
-        visible: root.poolOverridden
-        // Sits left of "Set" now that Set owns the row's true right edge.
-        anchors.right: setButton.left
-        anchors.rightMargin: Style.spacing.controlGap
-        anchors.verticalCenter: parent.verticalCenter
-        text: "Global"
-        bordered: true
-        foreground: root.foreground
-        horizontalPadding: Style.spacing.sm
-        AuditTag { tag: "3c"; shown: root.auditTags; below: true }
-        property bool tipOn: false
-        onHovered: function(isHovered) { poolResetButton.tipOn = isHovered }
-        SsToolTip {
-          visible: poolResetButton.tipOn
-          text: "This WorkSpace uses its own pool (" + root.poolLabel
-            + ") — click to hand it back to the Global pool"
-        }
-        onClicked: root.poolResetRequested()
-      }
+      // The "Global" reset button that used to live here moved into the pool
+      // picker itself, as "Use Global Pool" (0: "move the Global Button out
+      // of LIE and into the picker") -- it's decided at the same moment as
+      // the pool itself now, not back on this row.
 
       Text {
         id: settingsDots
         AuditTag { tag: "3"; shown: root.auditTags }
         // Right-justified now (0: "right just ify the ... on the li Editor"),
-        // matching the main panel's own "..." row. It steps aside for "Set"
-        // (always) and "Global" (when that's showing too), since all three
-        // share this row's right end, in that order: ... | Global | Set.
+        // matching the main panel's own "..." row. Steps aside for "Set",
+        // the row's other permanent right-end resident.
         anchors.right: parent.right
-        anchors.rightMargin: setButton.width + Style.spacing.controlGap +
-          (poolResetButton.visible ? poolResetButton.width + Style.spacing.controlGap : 0)
+        anchors.rightMargin: setButton.width + Style.spacing.controlGap
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.PlainText
         text: "..."

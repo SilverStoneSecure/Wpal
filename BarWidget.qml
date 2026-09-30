@@ -120,6 +120,9 @@ BarWidget {
     function debugSetBrowseFolder(p: string): void {
       if (panelLoader.item) panelLoader.item.debugSetBrowseFolder(p)
     }
+    function debugBrowseWsPool(id: int): void {
+      if (panelLoader.item) { panelLoader.item.openWorkspace(id, 300); panelLoader.item.debugBrowseWsPool(id) }
+    }
     function debugSetWsPool(id: int, p: string): void {
       if (panelLoader.item) panelLoader.item.debugSetWsPool(id, p)
     }

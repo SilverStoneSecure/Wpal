@@ -59,6 +59,15 @@ Item {
   signal folderChosen(string path)
   signal cancelled()
   signal versionPicked(int version)
+  // Two different resets moved in here from li's own settings row (0: "move
+  // the Global Button out of LIE and into the picker... add a revert to
+  // default button to the picker"): this workspace's own pool override back
+  // to following whatever the global pool currently is, or the GLOBAL pool
+  // itself back to the omarchy theme folder. Panel.qml wires these to
+  // clearWsPool()/setPoolFolder("") -- same actions, just triggered from
+  // where the decision is actually being made now.
+  signal poolResetRequested()
+  signal globalPoolResetRequested()
 
   // The contact sheet's hovered file name, drawn in one band across the
   // bottom of the sheet rather than inside the thumbnail it belongs to.
@@ -979,35 +988,66 @@ Item {
 
     // ---- the button row, both modes ---------------------------------------
     //
-    // Cancel on the left, and "Omarchy Theme Pool" + "Use this folder" paired
-    // hard right (0: "group omarch and ues this justified right"). It used to
-    // be pool-only, which left the image picker with no buttons at all and no
-    // way out but Escape (0: "theres no buttons"). In file mode the pair
-    // NAVIGATES -- theme pool jumps the browse there, "Use this folder" takes
-    // the folder you are standing in as this workspace's pool -- while a
-    // picture is still chosen by clicking the picture.
-    // ONE button, centred (0: "remove all buttons, leave the Use this folder
-    // centered, omarchy style"). Cancel, "Use Default" and "Omarchy Theme
-    // Pool" are gone: Escape and a click outside already close this, and the
-    // ladder is how you get anywhere else. Nothing else competes with the one
-    // thing this panel is for -- taking the folder you are standing in.
+    // Was ONE button, centred (0: "remove all buttons, leave the Use this
+    // folder centered, omarchy style") -- Escape and a click outside already
+    // close this, and the ladder is how you get anywhere else. Two reset
+    // buttons joined it later, each visible only in the ONE context it means
+    // something in (see their own comments below); in file mode (picking a
+    // single image) it's still "Use this Folder" alone, same as always --
+    // a picture is chosen by clicking the picture, this only hands back the
+    // folder it lives in.
     Item {
       width: column.width
-      implicitHeight: useFolderButton.implicitHeight
+      implicitHeight: buttonRow.implicitHeight
 
-      Button {
-        id: useFolderButton
+      Row {
+        id: buttonRow
         anchors.horizontalCenter: parent.horizontalCenter
-        // Nothing to set it on for the Omarchy Default browse (workspaceId 0),
-        // so file mode only offers it for a workspace's own picker.
-        visible: !root.pickFiles || root.workspaceId > 0
-        text: "Use this Folder"
-        bordered: true
-        foreground: root.foreground
-        horizontalPadding: Style.spacing.sm
-        onClicked: {
-          if (root.pickFiles) root.folderChosen(folderModel.currentPath)
-          else root.chosen(folderModel.currentPath)
+        spacing: Style.spacing.controlGap
+
+        // This workspace's own pool override, back to following the global
+        // pool -- moved here from li's settings row, where it read "Global"
+        // (0: "move the Global Button out of LIE and into the picker, reads
+        // 'Use Global Pool' even with the use this folder"). Per-workspace
+        // pool browse only -- meaningless during the global browse itself or
+        // a single-image pick.
+        Button {
+          anchors.verticalCenter: parent.verticalCenter
+          visible: !root.pickFiles && root.workspaceId > 0
+          text: "Use Global Pool"
+          bordered: true
+          foreground: root.foreground
+          horizontalPadding: Style.spacing.sm
+          onClicked: root.poolResetRequested()
+        }
+
+        // The GLOBAL pool itself, back to the omarchy theme folder (0: "add
+        // a revert to default button to the picker, it sets the omarchy
+        // theme folder as global default"). Global pool browse only.
+        Button {
+          anchors.verticalCenter: parent.verticalCenter
+          visible: !root.pickFiles && root.workspaceId === 0
+          text: "Revert to Default"
+          bordered: true
+          foreground: root.foreground
+          horizontalPadding: Style.spacing.sm
+          onClicked: root.globalPoolResetRequested()
+        }
+
+        Button {
+          id: useFolderButton
+          anchors.verticalCenter: parent.verticalCenter
+          // Nothing to set it on for the Omarchy Default browse (workspaceId 0),
+          // so file mode only offers it for a workspace's own picker.
+          visible: !root.pickFiles || root.workspaceId > 0
+          text: "Use this Folder"
+          bordered: true
+          foreground: root.foreground
+          horizontalPadding: Style.spacing.sm
+          onClicked: {
+            if (root.pickFiles) root.folderChosen(folderModel.currentPath)
+            else root.chosen(folderModel.currentPath)
+          }
         }
       }
     }

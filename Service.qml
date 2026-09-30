@@ -93,37 +93,65 @@ Item {
   // runtime (default mirrors the theme either way; zero panes never
   // launches anything), so an untouched workspace stays inert without
   // needing its own flag.
+  // `Array.isArray` is unreliable on `panesRaw`: settings pushed down from
+  // BarWidget cross the C++/JS boundary as array-LIKE QJSValue-wrapped
+  // sequences that JSON.stringify handles fine but Array.isArray reports
+  // false for. Round-tripping through JSON gives back a genuine array --
+  // but JSON.stringify silently returns undefined for a value it can't
+  // serialize, and JSON.parse(undefined) throws (it coerces to the literal
+  // string "undefined"). Traced 2026-09-30: an uncaught throw here aborted
+  // the whole wsConfig() call with no visible error, which pinned every
+  // caller downstream -- including the panel's thumbnail previewPath() --
+  // at its no-data default forever. One bad workspace's panes should degrade
+  // to "no panes configured", not blank every thumbnail silently.
+  function _safePanesRaw(panesRaw) {
+    if (!panesRaw) return null
+    try {
+      return JSON.parse(JSON.stringify(panesRaw))
+    } catch (e) {
+      console.warn("silverstone: wsConfig bad panes data, ignoring: " + e)
+      return null
+    }
+  }
+
   function wsConfig(id) {
-    var w = (settings && settings.workspaces) ? settings.workspaces[String(id)] : null
-    var bg = (w && w.background) || {}
-    // `Array.isArray` is unreliable here: settings pushed down from
-    // BarWidget cross the C++/JS boundary as array-LIKE QJSValue-wrapped
-    // sequences that JSON.stringify handles fine but Array.isArray reports
-    // false for. Round-tripping through JSON gives back a genuine array.
-    var panesRaw = w && w.panes
-    return {
-      background: {
-        mode: bg.mode || "default",
-        path: bg.path || "",
-        // `sourceFolder` is this key's pre-rename name; same fallback (and
-        // same "drop it once the migration has run" note) as the one in
-        // Model.normalizeBackground. Read raw here rather than through
-        // normalizeBackground because "" means "inherit the global pool" and
-        // has to survive as "".
-        poolFolder: ((bg.poolFolder !== undefined ? bg.poolFolder : bg.sourceFolder) || service.poolFolder)
-      },
-      panes: Model.normalizePanes(panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null),
-      autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
-      autoLaunchAsk: !!w && w.autoLaunchAsk === true,
-      launchLayout: (w && w.launchLayout) | 0,
-      // Which pane opens FULL SCREEN, remapped past any empty slot exactly
-      // the way Panel.wsSetting does it. It was missing here, so the launch
-      // path never even saw the pick -- the setting saved, drew its glyph in
-      // li, and then nothing on screen ever opened full screen (0: "or full
-      // screen for one, with the others open behind").
-      fullScreenIndex: Model.normalizeFullScreenIndex(
-        panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null,
-        (w && typeof w.fullScreenIndex === "number") ? w.fullScreenIndex : -1)
+    try {
+      var w = (settings && settings.workspaces) ? settings.workspaces[String(id)] : null
+      var bg = (w && w.background) || {}
+      var safePanes = service._safePanesRaw(w && w.panes)
+      return {
+        background: {
+          mode: bg.mode || "default",
+          path: bg.path || "",
+          // `sourceFolder` is this key's pre-rename name; same fallback (and
+          // same "drop it once the migration has run" note) as the one in
+          // Model.normalizeBackground. Read raw here rather than through
+          // normalizeBackground because "" means "inherit the global pool" and
+          // has to survive as "".
+          poolFolder: ((bg.poolFolder !== undefined ? bg.poolFolder : bg.sourceFolder) || service.poolFolder)
+        },
+        panes: Model.normalizePanes(safePanes),
+        autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
+        autoLaunchAsk: !!w && w.autoLaunchAsk === true,
+        launchLayout: (w && w.launchLayout) | 0,
+        // Which pane opens FULL SCREEN, remapped past any empty slot exactly
+        // the way Panel.wsSetting does it. It was missing here, so the launch
+        // path never even saw the pick -- the setting saved, drew its glyph in
+        // li, and then nothing on screen ever opened full screen (0: "or full
+        // screen for one, with the others open behind").
+        fullScreenIndex: Model.normalizeFullScreenIndex(
+          safePanes, (w && typeof w.fullScreenIndex === "number") ? w.fullScreenIndex : -1)
+      }
+    } catch (e) {
+      // Belt-and-suspenders: whatever field breaks next, a workspace falls
+      // back to fully-inert defaults instead of blanking its thumbnail or
+      // wedging autoLaunch for the whole panel.
+      console.warn("silverstone: wsConfig(" + id + ") threw, falling back to defaults: " + e)
+      return {
+        background: { mode: "default", path: "", poolFolder: service.poolFolder },
+        panes: [], autoLaunchEnabled: true, autoLaunchAsk: false,
+        launchLayout: 0, fullScreenIndex: -1
+      }
     }
   }
 
@@ -131,23 +159,25 @@ Item {
   // for the panel's thumbnails. Never triggers a resolve as a side effect --
   // opening the dropdown shouldn't itself pick a random image.
   function previewPath(id) {
-    // Custom always wins regardless of mode -- the Omarchy Default card's
-    // simple picker writes a real "custom" path into every workspace (see
-    // Panel.qml's applyWallpaperToAllWorkspaces), not a separate override,
-    // so it needs to show up here the same way any other custom pick does.
+    // Omarchy Default mode (masterEnabled === false) returns straight from
+    // globalOverride/themeBackground below and never reaches the per-workspace
+    // lookup at all -- the ten workspace configs are only ever consulted while
+    // masterEnabled is true. That keeps Default and Custom genuinely separate
+    // memories with separate paths: a workspace's "custom" path from a past
+    // Custom-mode session can never leak back into what Default mode shows.
     // Random is only consulted in SilverStone Custom, since that's the only
-    // mode that ever actively resolves/caches a random pick -- and even then
-    // falls back to the theme default rather than blank when nothing's
-    // cached yet. randomCache is in-memory only, so it's empty on every
-    // restart until a workspace is actually visited or re-randomized; a
-    // blank thumbnail in the meantime is exactly the "dark space" this
-    // fallback exists to rule out.
+    // mode that ever actively resolves/caches a random pick. randomCache is
+    // in-memory only and empty on every restart, but the last resolved pick
+    // is now persisted at background.path too (see persistRandomPicks), so
+    // that's the second fallback -- only an untouched-since-ever workspace
+    // (never visited, never randomized, nothing persisted) falls all the way
+    // to the theme default rather than showing blank.
     // Omarchy Default mode ignores every workspace setting: the override if
     // there is one, else the system/theme background.
     if (!service.masterEnabled) return service.globalOverride || service.themeBackground
     var cfg = service.wsConfig(id)
     if (cfg.background.mode === "custom" && cfg.background.path) return cfg.background.path
-    if (service.masterEnabled && cfg.background.mode === "random") return service.randomCache[String(id)] || service.themeBackground
+    if (service.masterEnabled && cfg.background.mode === "random") return service.randomCache[String(id)] || cfg.background.path || service.themeBackground
     return service.themeBackground
   }
 
@@ -211,10 +241,39 @@ Item {
           var cache = Object.assign({}, service.randomCache)
           cache[String(id)] = pick
           service.randomCache = cache
+          // Persist the pick so a reboot shows this SAME image instead of
+          // rerolling -- 0, 2026-09-30: "set wallpapers should survive a
+          // reboot" applies to a random draw too, not just an explicit Set.
+          // See resolveRandom's persisted-path fallback, which is what
+          // actually reads this back on the next cold start.
+          var picks = {}
+          picks[String(id)] = pick
+          service.persistRandomPicks(picks)
         }
         if (service._randomProcApply) service.setInstant(pick || service.themeBackground)
       }
     }
+  }
+
+  // Writes one or more workspaces' resolved random pick into settings,
+  // touching only each workspace's background.path -- mode/poolFolder/panes/
+  // etc. are left exactly as they already are, since whatever wrote those
+  // (randomizeWorkspace, randomizeAllWorkspaces) already ran first. `picks`
+  // is `{ "3": "/abs/path.jpg", ... }`.
+  function persistRandomPicks(picks) {
+    if (!service.writeSettings) return
+    var keys = Object.keys(picks || {})
+    if (keys.length === 0) return
+    var next = JSON.parse(JSON.stringify(service.settings || {}))
+    if (!next.workspaces) next.workspaces = {}
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i]
+      var existing = next.workspaces[key] || {}
+      var bg = existing.background || {}
+      existing.background = Object.assign({}, bg, { path: picks[key] })
+      next.workspaces[key] = existing
+    }
+    service.writeSettings(next)
   }
 
   function findImagesCommandFor(dir) {
@@ -299,6 +358,10 @@ Item {
     if (service._shuffleQueue.length === 0) {
       var cache = Object.assign({}, service.randomCache, service._shuffleCache)
       service.randomCache = cache
+      // One batched write for all ten picks, not ten -- same reasoning as
+      // Panel.randomizeAllWorkspaces' own settings write: ten writes would
+      // rebuild the panel ten times over.
+      service.persistRandomPicks(service._shuffleCache)
       service.applyBackground(service.focusedId)
       return
     }
@@ -317,6 +380,21 @@ Item {
     if (apply === undefined) apply = true
     if (!force) {
       var cached = service.randomCache[String(id)]
+      // Cold boot: randomCache is empty (in-memory only), but the last
+      // resolved pick is now persisted at wsConfig(id).background.path (see
+      // persistRandomPicks) -- use that instead of drawing a new image, so a
+      // random-mode workspace shows the SAME picture after a reboot. Seed
+      // the cache with it too, so previewPath/subsequent calls don't keep
+      // re-reading settings.
+      if (!cached) {
+        var persisted = service.wsConfig(id).background.path
+        if (persisted) {
+          var seeded = Object.assign({}, service.randomCache)
+          seeded[String(id)] = persisted
+          service.randomCache = seeded
+          cached = persisted
+        }
+      }
       if (cached) { if (apply) service.setInstant(cached); return }
     }
     service._randomProcTargetId = id
@@ -618,11 +696,34 @@ Item {
   // Apply immediately on a mode switch, not just on the next focus change.
   onMasterEnabledChanged: applyBackground(service.focusedId)
   onGlobalOverrideChanged: if (!service.masterEnabled) applyBackground(service.focusedId)
+
+  // Cold-start race, found 2026-09-30: this Item and BarWidget.qml (which
+  // holds the real shell.json data) are separate instances with no
+  // constructor ordering between them. BarWidget only hands this Item real
+  // settings via its own deferred pushSettings() -- see BarWidget.qml's
+  // "settings" comment. If Component.onCompleted below fired its boot
+  // evaluate unconditionally (the old code), it could win that race and run
+  // evaluateWorkspace/applyBackground while `settings` was still its default
+  // `{}`, resolving poolFolder to Model.resolveWallpaperFolder's fallback --
+  // Omarchy's theme backgrounds dir, not the configured custom pool. Random
+  // mode then CACHES that wrong pick in randomCache, which resolveRandom
+  // never retries once cached, so the workspace stayed on a theme-default
+  // image for the whole session -- exactly the "some did, some didn't,
+  // artifacted out to the default pool" 0 reported after a reboot, confirmed
+  // against shell.json: the affected workspaces' last-resolved `path` sat
+  // inside .local/state/omarchy/current/theme/backgrounds/ while working
+  // ones sat inside the real pool folder. Gate the boot evaluate on the
+  // FIRST real settings push instead of guessing with a bare Qt.callLater.
+  property bool _bootBackgroundApplied: false
+  function _applyBootBackgroundOnce() {
+    if (service._bootBackgroundApplied) return
+    service._bootBackgroundApplied = true
+    evaluateWorkspace(service.focusedId)
+  }
+  onSettingsChanged: service._applyBootBackgroundOnce()
+
   Component.onCompleted: {
     console.log("silverstone: Service.qml instantiated")
-    // Handle the case of a cold shell start landing directly on a configured
-    // workspace, where onFocusedIdChanged never fires because nothing changed.
-    Qt.callLater(function() { evaluateWorkspace(service.focusedId) })
     Qt.callLater(service.fetchRepoIfUrl)
   }
 }
