@@ -1294,7 +1294,13 @@ Item {
 
       // Empties this workspace's launchers. Same glyph, same size rule, same
       // accent-at-rest/red-on-hover as the main panel's Clear-all (0: "add a
-      // garbage glyph, same as main").
+      // garbage glyph, same as main") -- and the same arm-then-confirm click
+      // guard as main's (0: "add the same warning click thru on liE for
+      // delete launchers, same as main, but only effects the li"). No popup
+      // here either, same reasoning as main: a confirm dialog would be new
+      // chrome that has to reserve its own space. `clearLaunchers()` itself
+      // is already scoped to `root.workspaceId` only -- arming this button
+      // never touches any other workspace.
       PanelActionButton {
         id: wsClearLaunchersButton
         Layout.alignment: Qt.AlignVCenter
@@ -1305,15 +1311,25 @@ Item {
         size: wsAutoLaunchToggle.implicitHeight
         fontSize: Style.font.iconLarge
         iconText: "\uf1f8"
-        foreground: Color.accent
+        property bool armed: false
+        foreground: wsClearLaunchersButton.armed ? Color.urgent : Color.accent
         hoverColor: Color.urgent
         property bool tipOn: false
         onHovered: function(isHovered) { wsClearLaunchersButton.tipOn = isHovered }
         SsToolTip {
           visible: wsClearLaunchersButton.tipOn
-          text: "Clear this WorkSpace's launchers"
+          text: wsClearLaunchersButton.armed ? "Click again to confirm" : "Clear this WorkSpace's launchers"
         }
-        onClicked: root.clearLaunchers()
+        Timer { id: wsDisarmTimer; interval: 3000; onTriggered: wsClearLaunchersButton.armed = false }
+        onClicked: {
+          if (wsClearLaunchersButton.armed) {
+            wsClearLaunchersButton.armed = false
+            root.clearLaunchers()
+          } else {
+            wsClearLaunchersButton.armed = true
+            wsDisarmTimer.restart()
+          }
+        }
       }
 
     }
