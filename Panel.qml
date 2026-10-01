@@ -812,20 +812,15 @@ Panel {
 
   // Omarchy Default mode's single wallpaper pick/shuffle is one global
   // override saved on its own key -- never written into the ten Custom
-  // workspace configs -- so it survives mode switches and can be cleared
-  // with clearGlobalOverride() (no button for it now). Service applies it live
-  // when the setting changes.
+  // workspace configs -- so it survives mode switches. Service applies it
+  // live when the setting changes. Set by shuffleDefaultWallpaper() and by
+  // openOmarchyBackgroundPicker()'s onStreamFinished; there is currently no
+  // UI path that clears it back to following the live theme.
   readonly property string globalOverride: (settings && settings.globalOverride) || ""
 
   function setGlobalOverride(path) {
     var next = Util.cloneJson(root.settings || {})
     next.globalOverride = path
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
-  }
-
-  function clearGlobalOverride() {
-    var next = Util.cloneJson(root.settings || {})
-    delete next.globalOverride
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
   }
 
@@ -836,9 +831,8 @@ Panel {
   // failed to allocate 4 bytes", confirmed via two matching coredumps). Typed
   // text in the source field is for http(s) URLs; local paths come from here.
   //
-  // kind: "pool" | "image" (per-workspace specific wallpaper) |
-  // "globalOverride" (the single ws1 card's simple picker in Omarchy
-  // Default mode). null when no browse is in progress.
+  // kind: "pool" | "wsPool" | "image" (per-workspace specific wallpaper).
+  // null when no browse is in progress.
   property var pendingBrowse: null
   // Keyboard focus follows the browse cascade: picker frame while a browse
   // is pending, li's frame once it closes (so a second Escape hits li next,
@@ -888,24 +882,6 @@ Panel {
     browsePicker.folder = lastSlash > 0 ? cur.substring(0, lastSlash) : (repoParent !== "" ? repoParent : repo)
   }
 
-  // activeWorkspace=0 here is only to prime dialogAnchorY/escape-cascade
-  // state consistently with the other browse kinds -- dialogWin's own
-  // visibility depends on pendingBrowse directly, not on activeWorkspace,
-  // so this doesn't show anything by itself (the "simple picker" this card
-  // opens, not the full per-workspace dialog). cancelBrowse/finishBrowse
-  // reset activeWorkspace back out afterward.
-  function beginBrowseDefaultWallpaper(y) {
-    root.activeWorkspace = 0
-    if (y !== undefined) root.dialogAnchorY = y
-    pendingBrowse = { kind: "globalOverride" }
-    var curPath = root.previewFor(1)
-    browsePicker.currentPath = curPath
-    var lastSlash = curPath.lastIndexOf("/")
-    // Same reasoning as beginBrowseImage: root off the wallpaper pool, not
-    // bare $HOME, when there's no current path to work from.
-    browsePicker.folder = lastSlash > 0 ? curPath.substring(0, lastSlash) : root.poolFolder
-  }
-
   // viaEscape: the picker was the only thing open, so closing it hands the
   // keyboard straight back to the strip -- and the SAME Escape then closed the
   // whole panel (0: "esc on a GWP falls to all panes closed, it should send
@@ -913,11 +889,9 @@ Panel {
   // gives the strip focus behind a 400ms guard, exactly as closing li does; if
   // li is still open underneath, focus goes back to li instead.
   function cancelBrowse(viaEscape) {
-    var wasGlobalOverride = root.pendingBrowse && root.pendingBrowse.kind === "globalOverride"
     pendingBrowse = null
-    if (wasGlobalOverride) root.closeDialog()
     if (!viaEscape) return
-    if (root.activeWorkspace >= 0 && !wasGlobalOverride)
+    if (root.activeWorkspace >= 0)
       Qt.callLater(function() { dialogFrame.forceActiveFocus() })
     else
       root.primeStripEscape()
@@ -937,7 +911,6 @@ Panel {
       var eff = Model.effectiveBackground(Object.assign({}, cur, pick))
       root.updateWorkspace(req.workspaceId, { background: Object.assign(pick, eff) })
     }
-    else if (req.kind === "globalOverride") { root.setGlobalOverride(path); root.closeDialog() }
   }
 
   // A layer surface only spans ONE output, and the compositor hit-tests the
@@ -1592,10 +1565,7 @@ Panel {
                 // hands over to OMARCHY'S OWN picker rather than ours (0:
                 // "open the omarchy system background picker on click of the
                 // preview"). Our picker is for Wpal's per-workspace
-                // backgrounds; beginBrowseDefaultWallpaper (the "globalOverride"
-                // pendingBrowse kind) is currently unreachable from the UI --
-                // left in place rather than torn out mid-sweep, same as the
-                // other known-dead code noted in the production-sweep doc.
+                // backgrounds.
                 if (root.pendingBrowse) root.cancelBrowse()
                 root.openOmarchyBackgroundPicker()
               }
@@ -1780,9 +1750,9 @@ Panel {
     id: dialogWin
     // The overall Settings dialog moved inline into the strip -- this popup
     // is only for the per-workspace customize dialog and the browse picker
-    // now (see beginBrowseDefaultWallpaper's activeWorkspace=0, which is why
-    // pendingBrowse is checked independently rather than folded into the
-    // activeWorkspace condition).
+    // now. pendingBrowse is checked independently of activeWorkspace because
+    // the global pool browse (beginBrowsePool) opens with no workspace active
+    // at all.
     visible: root.opened && (root.activeWorkspace > 0 || root.pendingBrowse !== null)
     // The launcher-config panel sits to LI's LEFT (0: "the config for the AL
     // will popup to the LEFT of its parent the li editor") -- the same side
@@ -1824,9 +1794,9 @@ Panel {
     anchors.right: true
 
     // One bounding mask over whichever of the two frames are actually
-    // showing -- li alone, picker alone (pool/globalOverride, no li to sit
-    // beside), or both side by side (picker opened from li: it sits to LI's
-    // left rather than covering it, per 0 -- covering it was confusing).
+    // showing -- li alone, picker alone (the global pool browse, no li to
+    // sit beside), or both side by side (picker opened from li: it sits to
+    // LI's left rather than covering it, per 0 -- covering it was confusing).
     readonly property real maskLeft: Math.min(dialogFrame.visible ? dialogFrame.x : Infinity, pickerFrame.visible ? pickerFrame.x : Infinity,
       launcherFrame.visible ? launcherFrame.x : Infinity, cloneFrame.visible ? cloneFrame.x : Infinity)
     readonly property real maskTop: Math.min(dialogFrame.visible ? dialogFrame.y : Infinity, pickerFrame.visible ? pickerFrame.y : Infinity,
@@ -2116,20 +2086,17 @@ Panel {
       Keys.onReturnPressed: browsePicker.activateSelection()
       Keys.onEnterPressed: browsePicker.activateSelection()
 
-      // The rebuilt picker, with its three switchable styles (see
-      // WallpaperPicker.qml). The chosen style rides in Service so cycling it
-      // survives the settings write a pick performs.
       WallpaperPicker {
         id: browsePicker
         x: Style.spacing.panelPadding
         y: Style.spacing.panelPadding
-        pickFiles: root.pendingBrowse ? (root.pendingBrowse.kind === "image" || root.pendingBrowse.kind === "globalOverride") : false
+        pickFiles: root.pendingBrowse ? root.pendingBrowse.kind === "image" : false
         nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp", "*.gif"]
         foreground: root.contentForeground
         // Titles the picker with the workspace it was opened for; 0 for the
-        // global-pool and global-override browses, which belong to no one.
-        // wsPool belongs to a workspace just as much as `image` does -- it was
-        // left out, which is why li's pool picker titled itself "Global".
+        // global-pool browse, which belongs to no one. wsPool belongs to a
+        // workspace just as much as `image` does -- it was left out, which
+        // is why li's pool picker titled itself "Global".
         workspaceId: (root.pendingBrowse
           && (root.pendingBrowse.kind === "image" || root.pendingBrowse.kind === "wsPool"))
           ? root.pendingBrowse.workspaceId : 0
