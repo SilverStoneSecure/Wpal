@@ -261,6 +261,12 @@ Item {
 
   function setPaneField(idx, field, value) {
     var panes = root.cfg.panes.map(function(p) { return Object.assign({}, p) })
+    // idx can go stale if something else (Clear All Launchers, a clone onto
+    // this workspace) shrinks panes out from under an editor that's still
+    // open -- expandedSlot survives a settings write on purpose (see
+    // expandedSlotIntent), so a keystroke can still land here with nothing
+    // left at that slot. Drop it instead of indexing past the end.
+    if (idx < 0 || idx >= panes.length) return
     panes[idx][field] = value
     // The popup stays open across edits now (no accordion to auto-fold into
     // any more) -- Escape or a click outside closes it.

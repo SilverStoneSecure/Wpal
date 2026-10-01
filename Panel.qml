@@ -1869,6 +1869,14 @@ Panel {
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       focus: true
       Keys.onEscapePressed: root.escapePressed()
+      // Every edit here writes straight through to settings as it happens
+      // (0: "enter acts like save when...", same rule AutoLaunchConfig
+      // already follows) -- there's nothing staged for Enter to commit, so
+      // closing li is the whole of "Save" here. Same cascade as Escape: if
+      // a child panel (launcher editor, clone) is layered on top, THAT
+      // frame has focus instead and handles its own Enter first.
+      Keys.onReturnPressed: root.escapePressed()
+      Keys.onEnterPressed: root.escapePressed()
 
       CustomizeDialog {
         id: workspaceContent
