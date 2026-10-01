@@ -1719,12 +1719,31 @@ Panel {
               size: autoLaunchToggle.implicitHeight
               fontSize: Style.font.iconLarge
               iconText: "\uf1f8"
-              foreground: Color.accent
+              // Armed (red, held) after one click -- a second click within the
+              // window actually wipes all 10 workspaces. No popup: a confirm
+              // dialog here would be new panel chrome for a glyph button that
+              // was deliberately kept chrome-free (see the comment above), and
+              // would have to reserve its own space to avoid thrashing the
+              // panel. Arm-then-confirm costs nothing but a second click.
+              property bool armed: false
+              foreground: clearLaunchersButton.armed ? Color.urgent : Color.accent
               hoverColor: Color.urgent
               property bool tipOn: false
               onHovered: function(isHovered) { clearLaunchersButton.tipOn = isHovered }
-              SsToolTip { visible: clearLaunchersButton.tipOn; text: "Clear all launchers" }
-              onClicked: root.clearAllLaunchers()
+              SsToolTip {
+                visible: clearLaunchersButton.tipOn
+                text: clearLaunchersButton.armed ? "Click again to confirm" : "Clear all launchers"
+              }
+              Timer { id: disarmTimer; interval: 3000; onTriggered: clearLaunchersButton.armed = false }
+              onClicked: {
+                if (clearLaunchersButton.armed) {
+                  clearLaunchersButton.armed = false
+                  root.clearAllLaunchers()
+                } else {
+                  clearLaunchersButton.armed = true
+                  disarmTimer.restart()
+                }
+              }
             }
           }
 
