@@ -16,7 +16,7 @@ Item {
   id: root
 
   required property int workspaceId
-  property var cfg: ({ background: { mode: "default", path: "" }, panes: [], autoLaunchEnabled: true, autoLaunchAsk: false })
+  property var cfg: ({ background: { mode: "default", path: "" }, panes: [], autoLaunchEnabled: true })
   property string previewPath: ""
   property color foreground: Color.foreground
   property bool autoLaunchEnabled: true
@@ -24,8 +24,6 @@ Item {
   // randomize button's hover text then reads "Change Again", like the
   // panel's row (see Service.randomizedOnce).
   property bool randomizedOnce: false
-  // Walkthru audit tags, passed down from Panel (see AuditTag.qml).
-  property bool auditTags: true
   // Whether the clone line has already run this panel-open. Panel keeps the
   // flag in the service so it survives li closing, reopening and the settings
   // writes that rebuild this dialog (0: "only fires once now, and stays till
@@ -536,7 +534,6 @@ Item {
     Item {
       width: column.width
       implicitHeight: childrenRect.height
-      AuditTag { tag: "1"; shown: root.auditTags }
       RowLayout {
         width: column.width
         spacing: Style.spacing.controlGap
@@ -551,13 +548,11 @@ Item {
           color: root.foreground
           font.family: Style.font.family
           font.pixelSize: Math.round(Style.font.body * 2)
-          AuditTag { tag: "1a"; shown: root.auditTags; below: true }
         }
 
         Text {
           textFormat: Text.PlainText
           text: "WS" + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
-          AuditTag { tag: "1b"; shown: root.auditTags; below: true }
           color: root.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.heading
@@ -570,7 +565,6 @@ Item {
     PanelSeparator {
       width: column.width
       foreground: root.foreground
-      AuditTag { tag: "2"; shown: root.auditTags; atRight: true }
     }
 
     // The "Change Wallpaper" pill that used to sit here is gone (0: "lose the
@@ -598,7 +592,6 @@ Item {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         text: "+"
-        AuditTag { tag: "4c"; shown: root.auditTags; below: true }
         bordered: true
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
@@ -626,7 +619,6 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         text: "Set BG"
-        AuditTag { tag: "4d"; shown: root.auditTags; below: true }
         bordered: true
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
@@ -649,7 +641,6 @@ Item {
 
       Text {
         id: settingsDots
-        AuditTag { tag: "3"; shown: root.auditTags }
         // Right-justified now (0: "right just ify the ... on the li Editor"),
         // matching the main panel's own "..." row. Steps aside for "Set",
         // the row's other permanent right-end resident.
@@ -689,7 +680,6 @@ Item {
     Item {
       width: column.width
       implicitHeight: childrenRect.height
-      AuditTag { tag: "4"; shown: root.auditTags; atRight: true }
       RowLayout {
         width: column.width
         spacing: Style.spacing.xs
@@ -706,14 +696,12 @@ Item {
           opacity: root.launchOptions.length > 1 ? 1 : 0
           enabled: root.launchOptions.length > 1
           iconText: "‹"
-          AuditTag { tag: "4a"; shown: root.auditTags }
           foreground: root.foreground
           onClicked: root.cycleLayout(-1)
         }
 
         Rectangle {
           id: previewBox
-          AuditTag { tag: "4b"; shown: root.auditTags; inside: true }
           // Inside a RowLayout the layout owns the geometry, so the 56:38 ratio
           // has to come through Layout.preferredHeight -- a plain `height` was
           // overridden and collapsed the preview to nothing.
@@ -1070,7 +1058,6 @@ Item {
                   visible: rmButton.tipOn
                   text: "Remove this launcher"
                 }
-                AuditTag { tag: "4g"; shown: root.auditTags }
                 onClicked: root.removePane(rmCell.index)
               }
             }
@@ -1142,7 +1129,6 @@ Item {
                   text: fsCell.fsPick
                     ? "Opens full screen (click to unset)" : "Set to open full screen"
                 }
-                AuditTag { tag: "4e"; shown: root.auditTags }
                 onClicked: root.toggleFs(fsCell.index)
               }
             }
@@ -1198,7 +1184,6 @@ Item {
           opacity: root.launchOptions.length > 1 ? 1 : 0
           enabled: root.launchOptions.length > 1
           iconText: "›"
-          AuditTag { tag: "4f"; shown: root.auditTags }
           foreground: root.foreground
           onClicked: root.cycleLayout(1)
         }
@@ -1221,7 +1206,6 @@ Item {
       opacity: (root.savedLauncherCount > 0 || root.expandedSlot >= 0) ? 1 : 0
       width: column.width
       foreground: root.foreground
-      AuditTag { tag: "5"; shown: root.auditTags; atRight: true }
     }
 
     // Per-workspace Auto Launch, styled exactly like the main panel's Global
@@ -1257,7 +1241,6 @@ Item {
         // No fillWidth: that stretched the label into the gap and pushed the
         // glyph off the row. The spacer below does the pushing instead.
         text: "Auto Launch"
-        AuditTag { tag: "6"; shown: root.auditTags }
         // White when live, greyed back when off -- not red (0: "make 6 white
         // when on, and greyed out when disabled, (not red)"). 1.9 is the same
         // step the built-in panels use for a de-emphasised label. The toggle
@@ -1295,7 +1278,6 @@ Item {
         // blocked (0: "color the auto launch toggle buttons the same red as
         // the tile outline when blocking"); on is untouched.
         foreground: root.launchLive ? Color.foreground : "#e08a8a"
-        AuditTag { tag: "6a"; shown: root.auditTags }
         onToggled: root.updateFn(root.workspaceId, { autoLaunchEnabled: !root.cfg.autoLaunchEnabled })
       }
 
@@ -1309,7 +1291,6 @@ Item {
       // garbage glyph, same as main").
       PanelActionButton {
         id: wsClearLaunchersButton
-        AuditTag { tag: "6b"; shown: root.auditTags; below: true }
         Layout.alignment: Qt.AlignVCenter
         Layout.minimumWidth: implicitWidth
         Layout.preferredWidth: implicitWidth
@@ -1354,7 +1335,6 @@ Item {
 
       Item {
         id: cloneBox
-        AuditTag { tag: "8"; shown: root.auditTags }
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         implicitWidth: cloneRow.implicitWidth

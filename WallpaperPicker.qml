@@ -5,20 +5,20 @@ import Quickshell
 import qs.Commons
 import qs.Ui
 
-// The wallpaper picker, redrawn from scratch in three competing styles (0:
-// "I want to rework the wallpaper picker, its kind of ugly, make three new
-// styles, same functionality, and a version selector so i can test the
-// different versions"). `version` picks one; the ‹ n/3 › control in the title
-// row cycles it live, so all three can be compared without a restart.
+// The wallpaper picker: a contact sheet of thumbnails (file mode) or a
+// folder ladder (pool mode), redrawn from scratch for Omarchy parity (0:
+// "I want to rework the wallpaper picker, its kind of ugly").
 //
 // Titled like its parent panels -- double-sized SilverStone mark, then the
 // title, on a row of its own. That row used to end in a ✕; all the ✕s were
 // removed for Omarchy parity, so Escape or a click outside cancels instead.
 //
-// Same behaviour in all three: browse into folders, pick an image, Escape or
-// an outside click cancels. Folder-only mode (pickFiles: false) keeps the "Choose this
-// folder" button. Built on Qt's FolderListModel, never QtQuick.Dialogs --
-// that crashes Quickshell on this machine (see FolderPicker.qml).
+// Browse into folders, pick an image, Escape or an outside click cancels.
+// Folder-only mode (pickFiles: false) keeps the "Choose this folder" button.
+// Built on Qt's FolderListModel, never QtQuick.Dialogs --
+// that crashes Quickshell on this machine (a dconf-worker/GLib heap
+// corruption when the native GTK portal picker opens, confirmed via two
+// matching coredumps).
 Item {
   id: root
 
@@ -44,17 +44,6 @@ Item {
   // following the global pool) -- gates "Use Global Pool" below so it isn't
   // shown as a no-op when there's nothing to reset.
   property bool poolOverridden: false
-  // 1 = Two Pane, 2 = Contact Sheet, 3 = Stage. 0 picked Contact Sheet, so
-  // that is the default; the cycler stays for now so 1 and 3 are still
-  // reachable for comparison.
-  property int version: 2
-  readonly property int versionCount: 3
-  // Which pool picker is showing: 1 = the chip rail (two lines of name
-  // chips), 2 = the ladder (full-width name rows). Only folder mode uses it.
-  // `debugPoolStyle 1|2` flips it live, the way `version` does for files.
-  property int poolStyle: 2
-  readonly property string versionName: root.version === 1 ? "Two Pane"
-    : (root.version === 2 ? "Contact Sheet" : "Stage")
 
   signal chosen(string path)
   // File mode's "Use this folder": the picture is chosen by clicking it, so
@@ -62,7 +51,6 @@ Item {
   // pool (0: mimic GWP's buttons "into the WS wallpaper").
   signal folderChosen(string path)
   signal cancelled()
-  signal versionPicked(int version)
   // Two different resets moved in here from li's own settings row (0: "move
   // the Global Button out of LIE and into the picker... add a revert to
   // default button to the picker"): this workspace's own pool override back
@@ -91,10 +79,8 @@ Item {
   // calls moveSelection()/activateSelection() below; there was no keyboard
   // path into this picker at all before this pass, mouse-only throughout.
   property int selectedIndex: -1
-  // Contact Sheet is a fixed three-across grid (see sheet.cellWidth below);
-  // the ladder is one column. Only these two default, reachable views get a
-  // keyboard cursor -- V1/V2/Stage and the chip-rail pool style are
-  // debug-only alternates nobody hits day to day.
+  // The contact sheet is a fixed three-across grid (see sheet.cellWidth
+  // below); the ladder is one column.
   readonly property int selectionCols: root.pickFiles ? 3 : 1
   readonly property int selectionCount: root.pickFiles ? imageModel.count : dirModel.count
 
@@ -147,13 +133,6 @@ Item {
   function goUp() {
     var p = folderModel.currentPath
     root.folder = p.substring(0, p.lastIndexOf("/")) || "/"
-  }
-  function cycleVersion(dir) {
-    var v = root.version + dir
-    if (v > root.versionCount) v = 1
-    if (v < 1) v = root.versionCount
-    root.version = v
-    root.versionPicked(v)
   }
 
   // Folders only. The ladder runs off this in BOTH modes, which is what gives
@@ -237,10 +216,6 @@ Item {
         font.pixelSize: Style.font.heading
         font.bold: true
       }
-
-      // 0 picked Contact Sheet, so the ‹ n/3 › cycler is out of the title
-      // (it collided with the title at this width). The other two styles are
-      // still in the file -- `debugPickerVersion 1|2|3` switches them.
     }
 
     PanelSeparator { width: column.width; foreground: root.foreground }
@@ -330,103 +305,6 @@ Item {
             }
           }
         }
-      }
-    }
-
-    // ---- pool picker, style 1: the chip rail ------------------------------
-    //
-    // Two lines of name chips, paging sideways on ‹ ›. Superseded as the
-    // default by the ladder below (0 asked for another style); kept because
-    // `debugPoolStyle 1` still reaches it for a side-by-side.
-    RowLayout {
-      id: poolBrowseRow
-      visible: !root.pickFiles && root.poolStyle === 1 && dirModel.count > 0
-      width: column.width
-      spacing: Style.spacing.xs
-
-      readonly property int rows: 2
-      readonly property real chipH: Style.space(26)
-      readonly property bool overflowing: poolRail.contentWidth > poolRail.width
-
-      PanelActionButton {
-        Layout.alignment: Qt.AlignVCenter
-        visible: poolBrowseRow.overflowing
-        iconText: "\u2039"
-        foreground: root.foreground
-        onClicked: poolRail.step(-1)
-      }
-
-      GridView {
-        id: poolRail
-        Layout.fillWidth: true
-        Layout.preferredHeight: poolBrowseRow.rows * cellHeight
-        flow: GridView.FlowTopToBottom
-        clip: true
-        interactive: false
-        boundsBehavior: Flickable.StopAtBounds
-        cellHeight: poolBrowseRow.chipH + Style.spacing.xs
-        // Two chips across, so the names have room to read; more than four
-        // folders and the arrows page sideways through the rest.
-        cellWidth: Math.floor(width / 2)
-        model: dirModel
-
-        // One column of chips per press.
-        function step(dir) {
-          var maxX = Math.max(0, contentWidth - width)
-          contentX = Math.max(0, Math.min(contentX + dir * cellWidth, maxX))
-        }
-
-        Connections {
-          target: dirModel
-          function onFolderChanged() { poolRail.contentX = 0 }
-        }
-
-        delegate: Item {
-          id: chip
-          required property string fileName
-          required property bool fileIsDir
-          width: poolRail.cellWidth
-          height: poolRail.cellHeight
-
-          Rectangle {
-            anchors.fill: parent
-            anchors.rightMargin: Style.spacing.xs
-            anchors.bottomMargin: Style.spacing.xs
-            radius: Style.cornerRadius
-            color: chipMouse.containsMouse
-              ? Style.hoverFillFor(root.foreground, Color.accent)
-              : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.07)
-
-            Text {
-              anchors.fill: parent
-              anchors.leftMargin: Style.spacing.sm
-              anchors.rightMargin: Style.spacing.sm
-              verticalAlignment: Text.AlignVCenter
-              textFormat: Text.PlainText
-              text: "▸ " + chip.fileName
-              elide: Text.ElideRight
-              color: root.foreground
-              font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
-            }
-
-            MouseArea {
-              id: chipMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.folder = folderModel.currentPath + "/" + chip.fileName
-            }
-          }
-        }
-      }
-
-      PanelActionButton {
-        Layout.alignment: Qt.AlignVCenter
-        visible: poolBrowseRow.overflowing
-        iconText: "\u203a"
-        foreground: root.foreground
-        onClicked: poolRail.step(1)
       }
     }
 
@@ -528,7 +406,7 @@ Item {
       }
     }
 
-    // ---- pool picker, style 2: the ladder ---------------------------------
+    // ---- pool picker: the ladder -------------------------------------------
     //
     // One folder per line, full width, flat -- a chevron, the name, and a
     // hover bar. No tiles, no chips, no boxes: the tiles read as blanks and
@@ -541,15 +419,13 @@ Item {
     Item {
       id: poolLadder
       // Both modes: the pool takes a folder with it, the image picker walks
-      // down the tree with it. Style 1 (the chip rail) is a pool-only
-      // alternate, so file mode always gets the ladder.
+      // down the tree with it.
       // NOT gated on the folder having children any more. A leaf folder --
       // the theme's own backgrounds directory is one: seven pictures, no
       // subfolders -- made the ladder vanish, and with the pool picker having
       // no preview by design the panel came up as a title, a path and some
       // buttons (0: "the custom pool background it blasted"). It keeps its
       // four rows and says it is empty instead.
-      visible: root.pickFiles || root.poolStyle === 2
       width: column.width
       readonly property real rowH: Style.space(26)
       height: rowH * 4
@@ -636,90 +512,8 @@ Item {
       }
     }
 
-    // ================= V1: Two Pane =======================================
-    // The familiar shape, tidied: big preview on the left, names on the
-    // right, folders marked with ▸.
-    Row {
-      // Collapses entirely when there is nothing to browse into, instead of
-      // holding a fixed 230px of empty box (0: "KILL THE DEAD SPACE ON GWP,
-      // the middle 1/3 is dead space").
-      visible: root.version === 1 && folderModel.count > 0
-      spacing: Style.spacing.sm
-
-      Rectangle {
-        width: Style.space(170)
-        height: root.bodyH
-        color: "transparent"
-
-        Rectangle {
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          height: Math.round(width * 9 / 16)
-          visible: root.shownPath !== ""
-          color: Qt.darker(root.foreground, 3)
-          radius: Style.cornerRadius
-          clip: true
-
-          Image {
-            anchors.fill: parent
-            source: root.shownPath !== "" ? Util.fileUrl(root.shownPath) : ""
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            sourceSize.width: 320
-          }
-        }
-      }
-
-      ListView {
-        width: column.width - Style.space(170) - Style.spacing.sm
-        height: Style.space(230)
-        clip: true
-        model: folderModel
-        boundsBehavior: Flickable.StopAtBounds
-
-        delegate: Rectangle {
-          required property int index
-          required property string fileName
-          required property bool fileIsDir
-          width: ListView.view.width
-          height: Math.max(Style.space(26), rowText.implicitHeight + Style.spacing.xs * 2)
-          color: rowMouse.containsMouse ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
-          radius: Style.cornerRadius
-
-          Text {
-            id: rowText
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: Style.spacing.sm
-            anchors.rightMargin: Style.spacing.sm
-            textFormat: Text.PlainText
-            text: (fileIsDir ? "▸ " : "") + fileName
-            elide: Text.ElideRight
-            color: root.foreground
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-          }
-
-          MouseArea {
-            id: rowMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onContainsMouseChanged: root.hoverPath = (containsMouse && !fileIsDir)
-              ? folderModel.currentPath + "/" + fileName : ""
-            onClicked: {
-              if (fileIsDir) root.folder = folderModel.currentPath + "/" + fileName
-              else root.chosen(folderModel.currentPath + "/" + fileName)
-            }
-          }
-        }
-      }
-    }
-
-    // ================= V2: Contact Sheet ==================================
-    // Every image in the folder as a thumbnail, three across; folders are
+    // ---- the contact sheet: every image as a thumbnail --------------------
+    // Three across; folders are
     // slim full-width rows above them. Pick by clicking the picture itself.
     // Height follows the CONTENT now, not a fixed 260 (0: "compress the
     // wallpaper picker up to the amount of images ... it kills dead space").
@@ -738,7 +532,7 @@ Item {
       // image-less folder (common while navigating down toward a picture)
       // resized the whole dialog and everything below it, including the
       // button row. Keeps its reserved height and says it's empty instead.
-      visible: root.version === 2 && root.pickFiles
+      visible: root.pickFiles
       width: column.width
       readonly property int rows: Math.ceil(imageModel.count / 3)
       // Always the body height, never the row count -- the grid scrolls
@@ -885,7 +679,7 @@ Item {
       // File mode only. The pool's stack is strip -> picker -> buttons and
       // nothing else (0: "thats it then the button"), so its two lines scroll
       // on the wheel against the slim scrollbar instead of costing a row.
-      visible: root.version === 2 && root.pickFiles && sheet.contentHeight > sheet.height
+      visible: root.pickFiles && sheet.contentHeight > sheet.height
       width: column.width
       spacing: Style.spacing.xs
 
@@ -908,105 +702,6 @@ Item {
       Item { Layout.fillWidth: true }
     }
 
-    // ================= V3: Stage ==========================================
-    // One big stage showing what you're about to set, with a filmstrip of
-    // candidates under it. Click the stage to take it, or a strip item.
-    Column {
-      visible: root.version === 3 && folderModel.count > 0
-      width: column.width
-      spacing: Style.spacing.sm
-
-      Rectangle {
-        width: column.width
-        height: Math.round(column.width * 9 / 16)
-        color: Qt.darker(root.foreground, 3)
-        radius: Style.cornerRadius
-        clip: true
-
-        Image {
-          anchors.fill: parent
-          source: root.shownPath !== "" ? Util.fileUrl(root.shownPath) : ""
-          fillMode: Image.PreserveAspectCrop
-          asynchronous: true
-          sourceSize.width: 480
-        }
-
-        Text {
-          anchors.centerIn: parent
-          visible: root.shownPath === ""
-          textFormat: Text.PlainText
-          text: "hover a Background"
-          color: root.foreground
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
-
-        MouseArea {
-          anchors.fill: parent
-          enabled: root.shownPath !== ""
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.chosen(root.shownPath)
-        }
-      }
-
-      ListView {
-        width: column.width
-        height: Style.space(86)
-        orientation: ListView.Horizontal
-        spacing: Style.spacing.sm
-        clip: true
-        model: folderModel
-        boundsBehavior: Flickable.StopAtBounds
-
-        delegate: Rectangle {
-          required property int index
-          required property string fileName
-          required property bool fileIsDir
-          width: fileIsDir ? Style.space(110) : Style.space(130)
-          height: Style.space(80)
-          radius: Style.cornerRadius
-          color: fileIsDir ? Qt.rgba(0, 0, 0, 0.25) : Qt.darker(root.foreground, 3)
-          border.width: stripMouse.containsMouse ? 2 : 0
-          border.color: root.foreground
-          clip: true
-
-          Image {
-            anchors.fill: parent
-            visible: !fileIsDir
-            source: fileIsDir ? "" : Util.fileUrl(folderModel.currentPath + "/" + fileName)
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            sourceSize.width: 200
-          }
-
-          Text {
-            anchors.centerIn: parent
-            width: parent.width - Style.spacing.sm
-            visible: fileIsDir
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WrapAnywhere
-            textFormat: Text.PlainText
-            text: "▸ " + fileName
-            color: root.foreground
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-          }
-
-          MouseArea {
-            id: stripMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onContainsMouseChanged: root.hoverPath = (containsMouse && !fileIsDir)
-              ? folderModel.currentPath + "/" + fileName : ""
-            onClicked: {
-              if (fileIsDir) root.folder = folderModel.currentPath + "/" + fileName
-              else root.chosen(folderModel.currentPath + "/" + fileName)
-            }
-          }
-        }
-      }
-    }
 
     // ---- the button row, both modes ---------------------------------------
     //

@@ -58,17 +58,12 @@ Panel {
   // Independent of wallpaper mode above -- a global kill switch for every
   // workspace's auto-launch panes, without discarding what's configured.
   readonly property bool autoLaunchEnabled: settings && settings.autoLaunchEnabled !== false
-  // Global "Auto Launch Ask" -- when on, every workspace asks Y/N before its
-  // panes launch (see Service.qml's maybeAutoLaunch / LaunchPrompt.qml).
-  readonly property bool autoLaunchAsk: settings && settings.autoLaunchAsk === true
   // After the first randomize this shell run, the randomize control reads
   // "Change Again" (see the Randomize row) -- in both modes, on the panel
   // row and in li (one shared flag).
   readonly property bool randomizedOnce: root.service ? root.service.randomizedOnce === true : false
   readonly property bool randomizeRevealed: root.service ? root.service.randomizeRevealed === true : false
   readonly property bool randomizeArmed: root.service ? root.service.randomizeArmed === true : false
-  // Walkthru audit tags (see AuditTag.qml). Default ON, per 0.
-  readonly property bool auditTags: root.service ? root.service.auditTags !== false : true
   // "default" checkbox on the Custom Actions tile: when on, the shell starts
   // in Custom (SS-Behaviour) regardless of the mode saved last -- applied once
   // per shell start by Service.applyStartupMode.
@@ -94,10 +89,10 @@ Panel {
   // instead of centered on screen.
   property real dialogAnchorY: 0
 
-  // Every way into li -- a card click, debugOpenWorkspace, debugEditPane --
-  // comes through here, so this is where Global settings gets closed. They
-  // are never open at the same time (0: "if a line item gets clicked,
-  // global settings closes"), and no future caller has to remember to do it.
+  // Every way into li comes through here, so this is where Global settings
+  // gets closed. They are never open at the same time (0: "if a line item
+  // gets clicked, global settings closes"), and no future caller has to
+  // remember to do it.
   function openWorkspace(id, y) {
     activeWorkspace = id
     if (y !== undefined) root.dialogAnchorY = y
@@ -422,9 +417,6 @@ Panel {
     }
   }
   onServiceChanged: {
-    if (root.service) {
-      root.pickerVersion = root.service.pickerVersionIntent
-    }
     if (root.service && root.service.panelOpenIntent && !root.opened) root.open()
     if (root.service && root.service.activeWorkspaceIntent !== -1) {
       root.activeWorkspace = root.service.activeWorkspaceIntent
@@ -456,9 +448,6 @@ Panel {
       // without touching what's configured (see Service.qml's
       // maybeAutoLaunch, which checks this after the global switch).
       autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
-      // This workspace always asks Y/N before launching, even with the
-      // global Ask off.
-      autoLaunchAsk: !!w && w.autoLaunchAsk === true,
       // Which tiling option (Model.launchLayouts) the auto-launched windows use.
       launchLayout: (w && w.launchLayout) | 0,
       // Which configured slot (if any) opens full screen. -1 = none. Only
@@ -531,7 +520,6 @@ Panel {
       background: Object.assign({}, cur.background, patch.background || {}),
       panes: patch.panes !== undefined ? patch.panes : cur.panes,
       autoLaunchEnabled: patch.autoLaunchEnabled !== undefined ? patch.autoLaunchEnabled : cur.autoLaunchEnabled,
-      autoLaunchAsk: patch.autoLaunchAsk !== undefined ? patch.autoLaunchAsk : cur.autoLaunchAsk,
       launchLayout: patch.launchLayout !== undefined ? patch.launchLayout : cur.launchLayout,
       fullScreenIndex: patch.fullScreenIndex !== undefined ? patch.fullScreenIndex : cur.fullScreenIndex
     }
@@ -593,67 +581,6 @@ Panel {
   // Mirrored into the long-lived Service so a settings write can't lose it.
   onCloneDialogOpenChanged: if (root.service) root.service.cloneOpenIntent = root.cloneDialogOpen
 
-  // Which of the picker's three styles is showing, while 0 decides between
-  // them. Lives in Service for the same reason as everything else here: a
-  // pick writes settings, which rebuilds this panel.
-  property int pickerVersion: 2
-  function setPickerVersion(v) {
-    root.pickerVersion = v
-    if (root.service) root.service.pickerVersionIntent = v
-  }
-
-  // Which pool picker style the folder browse shows -- no config behind it,
-  // it is there to compare the two live.
-  function setPoolStyle(v) { browsePicker.poolStyle = v }
-  function debugSaveAl() { launcherContent.commitAndSave() }
-  function debugDragTiles(from, to) {
-    workspaceContent.dragSlot = from
-    workspaceContent.dropSlot = to
-  }
-
-  function debugPlayClone() { workspaceContent.playClone() }
-  function debugClone(text) { root.cloneDialogOpen = true; cloneContent.setText(text) }
-  // Flips the "Global settings" block open/closed, as its "..." does.
-  // Opens the li preview's launcher popup for a slot, the way clicking that
-  // tile (or "+ Add Launcher") does -- pointer clicks can't be synthesized
-  // from a test here, so this is how the popup gets exercised.
-  function debugEditPane(idx) { workspaceContent.expandedSlot = idx }
-  // Opens/closes the global pool picker popup -- what the main panel's "..."
-  // does. There is no way to synthesize that click from here.
-  function debugBrowseRepo(v) {
-    if (v) root.beginBrowsePool()
-    else if (root.pendingBrowse && root.pendingBrowse.kind === "pool") root.cancelBrowse()
-  }
-  // Jumps the OPEN picker straight to a folder, so the empty/populated
-  // layout can be compared without clicking through the ladder to find one.
-  function debugSetBrowseFolder(p) { browsePicker.folder = p }
-  // li's "..." -> pool pick, without a pointer.
-  function debugBrowseWsPool(id) { root.beginBrowseWsPool(id) }
-  // Same write finishBrowse's "wsPool" branch performs when a real pool pick
-  // completes -- assigns id its OWN custom background pool, for testing the
-  // shuffle's per-workspace-pool logic without clicking through the picker.
-  function debugSetWsPool(id, p) { root.updateWorkspace(id, { background: { poolFolder: p } }) }
-  // Flips li's settings block (pool override + Auto Launch checkbox), as
-  // either "..." does, and adds a launcher the way the preview's "+" does --
-  // both are pointer-only paths otherwise.
-  // li's "..." now opens the pool picker as a child panel, so this exercises
-  // that path rather than the old in-place block.
-  function debugLiSettings(v) {
-    if (v) root.beginBrowseWsPool(root.activeWorkspace)
-    else root.cancelBrowse()
-  }
-  function debugAddLauncher() { workspaceContent.addPane() }
-  // Fills slot idx with a command (or clears it with ""), the way typing into
-  // the Pane config panel does -- the only way to exercise the tile labels,
-  // the disabled hue and drag-to-swap without a pointer and keyboard.
-  function debugSetPane(id, idx, args) {
-    var cur = root.wsSetting(id)
-    var panes = cur.panes.map(function(p) { return Object.assign({}, p) })
-    while (panes.length <= idx) panes.push(Model.emptyPane())
-    panes[idx] = { appId: "", args: args }
-    root.updateWorkspace(id, { panes: panes })
-  }
-
   function setMasterEnabled(v) {
     // Switching modes dismisses whatever picker/dialog is open (e.g. the
     // Omarchy-mode wallpaper picker) -- before the write, since the write
@@ -674,12 +601,6 @@ Panel {
   function setStartupCustom(v) {
     var next = Util.cloneJson(root.settings || {})
     next.startupCustom = v
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
-  }
-
-  function setAutoLaunchAsk(v) {
-    var next = Util.cloneJson(root.settings || {})
-    next.autoLaunchAsk = v
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
   }
 
@@ -735,7 +656,6 @@ Panel {
           source: "pool", poolPath: "", outsidePath: cur.background.outsidePath },
         panes: cur.panes,
         autoLaunchEnabled: cur.autoLaunchEnabled,
-        autoLaunchAsk: cur.autoLaunchAsk,
         launchLayout: cur.launchLayout,
         // Carried through like the rest: a wallpaper reroll has no business
         // clearing which launcher opens full screen (it was being dropped).
@@ -909,7 +829,7 @@ Panel {
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
   }
 
-  // Local browsing goes through FolderPicker.qml (pure Qt FolderListModel),
+  // Local browsing goes through WallpaperPicker.qml's own FolderListModel,
   // never QtQuick.Dialogs' native File/FolderDialog -- that reproducibly
   // crashes the whole Quickshell process on this system (a dconf-worker/GLib
   // heap corruption when the native GTK portal picker opens: "glib/gmem.c:106:
@@ -1378,13 +1298,11 @@ Panel {
               color: root.contentForeground
               font.family: Style.font.family
               font.pixelSize: Math.round(Style.font.body * 2)
-              AuditTag { tag: "1a"; shown: root.auditTags; below: true }
             }
 
             Text {
               textFormat: Text.PlainText
               text: "Wpal"
-              AuditTag { tag: "1b"; shown: root.auditTags; below: true }
               color: root.contentForeground
               font.family: Style.font.family
               // Same heading size as li, the picker and the launcher panel (0).
@@ -1398,7 +1316,6 @@ Panel {
         PanelSeparator {
           width: root.settingsWidth
           foreground: root.contentForeground
-          AuditTag { tag: "2"; shown: root.auditTags; atRight: true; inside: true }
         }
 
         // Section title, left-aligned above the buttons (0: "add a Title
@@ -1413,7 +1330,6 @@ Panel {
           foreground: root.contentForeground
           // below: 1a's own below-badge owns the band above this, and the
           // header is too short for atRight to clear it.
-          AuditTag { tag: "2a"; shown: root.auditTags; below: true }
         }
 
         // Mode buttons: two rounded rects filling the row. Selected one is
@@ -1421,7 +1337,6 @@ Panel {
         Item {
           width: root.settingsWidth
           implicitHeight: childrenRect.height
-          AuditTag { tag: "3"; shown: root.auditTags; inside: true; atRight: true }
           RowLayout {
             width: root.settingsWidth
             spacing: Style.spacing.sm
@@ -1437,7 +1352,6 @@ Panel {
             // Equal halves, like the agents Repeater's cellWidth.
             Button {
               id: defaultModeButton
-              AuditTag { tag: "3a"; shown: root.auditTags; inside: true }
               // HALF THE ROW EACH (0: "mode buttons should share the panel,
               // they can centre in thier pill"). `fillWidth` alone hands each
               // button its own text width first and only shares out the
@@ -1468,7 +1382,6 @@ Panel {
 
             Button {
               id: silverstoneModeButton
-              AuditTag { tag: "3b"; shown: root.auditTags; inside: true }
               // The other half -- see its twin above.
               Layout.fillWidth: true
               Layout.preferredWidth: 0
@@ -1530,7 +1443,6 @@ Panel {
               text: "WorkSpaces"
               fontSize: Style.font.bodySmall
               foreground: root.contentForeground
-              AuditTag { tag: "10"; shown: root.auditTags }
             }
 
             Item { Layout.fillWidth: true }
@@ -1544,7 +1456,6 @@ Panel {
               visible: root.masterEnabled
               textFormat: Text.PlainText
               text: "..."
-              AuditTag { tag: "4"; shown: root.auditTags }
               color: root.contentForeground
               font.family: Style.font.family
               font.pixelSize: Style.font.body
@@ -1574,7 +1485,6 @@ Panel {
 
             PanelActionButton {
               id: shuffleButton
-              AuditTag { tag: "11c"; shown: root.auditTags }
               Layout.alignment: Qt.AlignVCenter
               // Omarchy's own bar update icon, same glyph the SystemUpdate bar
               // widget uses (0: "change to omarchys update icon on the bar").
@@ -1622,7 +1532,6 @@ Panel {
         // than sitting flush-left under the wider settings block above.
         Item {
           id: cardsHost
-          AuditTag { tag: "12"; shown: root.auditTags; atRight: true }
           visible: true
           width: root.settingsWidth
           implicitHeight: cardColumn.implicitHeight
@@ -1645,7 +1554,6 @@ Panel {
               selected: root.cursorActive && root.cursorWs === modelData
               // ~2s spread across the ten cards, in list order.
               staggerMs: root.shuffleJustRan ? (modelData === 10 ? 9 : modelData - 1) * 200 : 0
-              AuditTag { tag: "12" + String.fromCharCode(96 + modelData); shown: root.auditTags }
               // Omarchy Default's lone card stands for the whole desktop's
               // wallpaper, not workspace 1's -- so it carries no number
               // (0: "lose the 1 for workspace 1 on the default mode").
@@ -1684,8 +1592,10 @@ Panel {
                 // hands over to OMARCHY'S OWN picker rather than ours (0:
                 // "open the omarchy system background picker on click of the
                 // preview"). Our picker is for Wpal's per-workspace
-                // backgrounds; beginBrowseDefaultWallpaper stays reachable
-                // through debugBrowseDefault.
+                // backgrounds; beginBrowseDefaultWallpaper (the "globalOverride"
+                // pendingBrowse kind) is currently unreachable from the UI --
+                // left in place rather than torn out mid-sweep, same as the
+                // other known-dead code noted in the production-sweep doc.
                 if (root.pendingBrowse) root.cancelBrowse()
                 root.openOmarchyBackgroundPicker()
               }
@@ -1722,14 +1632,12 @@ Panel {
           visible: root.masterEnabled
           width: root.settingsWidth
           foreground: root.contentForeground
-          AuditTag { tag: "13"; shown: root.auditTags; atRight: true }
         }
 
         Item {
           visible: root.masterEnabled
           width: root.settingsWidth
           implicitHeight: childrenRect.height
-          AuditTag { tag: "14"; shown: root.auditTags }
           RowLayout {
             id: globalAlRow
             visible: root.masterEnabled
@@ -1755,7 +1663,6 @@ Panel {
               // says that, in its own red.
               horizontalAlignment: Text.AlignLeft
               text: "Global\nAutoLaunch"
-              AuditTag { tag: "14a"; shown: root.auditTags; below: true }
               // Soft tint when on, soft red when off (0).
               // Same treatment as li's (0: "do global too") -- white on,
               // greyed off, never red; the toggle keeps its red.
@@ -1777,7 +1684,6 @@ Panel {
               // blocked (0: "color the auto launch toggle buttons the same red as
               // the tile outline when blocking"); on is untouched.
               foreground: root.autoLaunchEnabled ? Color.foreground : "#e08a8a"
-              AuditTag { tag: "14b"; shown: root.auditTags }
               onToggled: root.setAutoLaunchEnabled(!root.autoLaunchEnabled)
             }
 
@@ -1797,7 +1703,6 @@ Panel {
             // destructive control in the shell.
             PanelActionButton {
               id: clearLaunchersButton
-              AuditTag { tag: "14c"; shown: root.auditTags; below: true }
               Layout.alignment: Qt.AlignVCenter
               // Never let the row squeeze it to nothing.
               Layout.minimumWidth: implicitWidth
@@ -1981,12 +1886,11 @@ Panel {
         x: Style.spacing.panelPadding
         y: Style.spacing.panelPadding
         workspaceId: root.activeWorkspace > 0 ? root.activeWorkspace : 1
-        cfg: root.activeWorkspace > 0 ? root.wsSetting(root.activeWorkspace) : ({ background: { mode: "default", path: "", poolFolder: "" }, panes: Model.normalizePanes(null), autoLaunchEnabled: true, autoLaunchAsk: false })
+        cfg: root.activeWorkspace > 0 ? root.wsSetting(root.activeWorkspace) : ({ background: { mode: "default", path: "", poolFolder: "" }, panes: Model.normalizePanes(null), autoLaunchEnabled: true })
         previewPath: root.activeWorkspace > 0 ? root.previewFor(root.activeWorkspace) : ""
         foreground: root.contentForeground
         autoLaunchEnabled: root.autoLaunchEnabled
         randomizedOnce: root.randomizedOnce
-        auditTags: root.auditTags
         fsSlot: root.launchFsIndexFor(root.activeWorkspace)
         // li stops taking clicks while either of its side panels is open.
         childOpen: root.childPanelOpen
@@ -2215,8 +2119,6 @@ Panel {
         // no-op (clearWsPool on an already-empty poolFolder).
         poolOverridden: (root.pendingBrowse && root.pendingBrowse.kind === "wsPool")
           ? !!root.wsPoolFolderRaw(root.pendingBrowse.workspaceId) : false
-        version: root.pickerVersion
-        onVersionPicked: function(v) { root.setPickerVersion(v) }
         onChosen: function(p) { root.finishBrowse(p) }
         // File mode only: same write the wsPool branch of finishBrowse does,
         // then the picker closes like any other commit.

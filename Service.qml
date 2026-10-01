@@ -62,8 +62,6 @@ Item {
   // is not saving after a change, it keep its original".
   property int expandedSlotIntent: -1
   property bool cloneOpenIntent: false
-  // Which wallpaper-picker style is on show (1-3) while 0 picks between them.
-  property int pickerVersionIntent: 2
 
   // Same story again for the panel's Global settings block, which a mode
   // switch (a settings write) would otherwise collapse the instant it was
@@ -82,10 +80,6 @@ Item {
   // for every workspace's auto-launch panes, without discarding what's
   // configured on each one.
   readonly property bool autoLaunchEnabled: settings && settings.autoLaunchEnabled !== false
-  // Global "Auto Launch Ask": when on, an empty workspace's panes wait for a
-  // Y/N answer instead of launching on focus. A workspace can also ask on
-  // its own (wsConfig().autoLaunchAsk); either one is enough. Off by default.
-  readonly property bool autoLaunchAsk: settings && settings.autoLaunchAsk === true
 
   // Normalized per-workspace config with every field defaulted, so callers
   // never have to null-check. There's no separate "customize" gate: a
@@ -114,7 +108,6 @@ Item {
       },
       panes: Model.normalizePanes(panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null),
       autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
-      autoLaunchAsk: !!w && w.autoLaunchAsk === true,
       launchLayout: (w && w.launchLayout) | 0,
       // Which pane opens FULL SCREEN, remapped past any empty slot exactly
       // the way Panel.wsSetting does it. It was missing here, so the launch
@@ -438,11 +431,6 @@ Item {
     return decodeURIComponent(u.replace(/^file:\/\//, ""))
   }
 
-  // Workspace id currently waiting on the Y/N prompt (LaunchPrompt.qml);
-  // 0 = no prompt showing. Lives here, not in Panel.qml, because a settings
-  // write recreates the panel and the prompt has to survive that.
-  property int askingWs: 0
-
   // The configured panes that would launch on `id` right now, or null when
   // nothing should: global switch off, this workspace paused, nothing
   // configured, or ANY window already open there. No more per-slot on/off --
@@ -460,25 +448,17 @@ Item {
     return active
   }
 
+  // The hard rule: focus an EMPTY workspace and its launchers fire; focus one
+  // with anything on it and NOTHING happens. No prompt in between -- a prompt
+  // window on focus would itself be "something happening."
   function maybeAutoLaunch(id) {
     if (!service.launchablePanes(id)) return
-    // ASK IS OFF (0: "1 off", answering whether the Y/N prompt should survive
-    // the hard rule). The rule is: focus an EMPTY workspace and its launchers
-    // fire; focus one with anything on it and NOTHING happens. A prompt window
-    // on focus is something happening, so it never opens. The prompt itself
-    // (LaunchPrompt.qml) and the two `autoLaunchAsk` settings are left in
-    // place but dormant -- nothing reads them to decide any more.
-    var ask = false
-    console.log("silverstone: workspace " + id + " is empty with panes to launch, ask=" + ask)
-    if (ask) {
-      service.askingWs = id
-      return
-    }
+    console.log("silverstone: workspace " + id + " is empty with panes to launch")
     service.launchWorkspace(id)
   }
 
   function launchWorkspace(id) {
-    var active = service.launchablePanes(id)  // re-check: config/windows may have changed while the prompt was up
+    var active = service.launchablePanes(id)  // re-check: config/windows may have changed since evaluateWorkspace
     if (!active) return
 
     var now = Date.now()
@@ -519,14 +499,6 @@ Item {
   }
   Process { id: switchProc }
 
-  // The prompt's answer. "just go without goodness" (no) simply drops it;
-  // the workspace is asked again the next time it's focused while empty.
-  function answerLaunch(yes) {
-    var id = service.askingWs
-    service.askingWs = 0
-    if (yes) service.launchWorkspace(id)
-  }
-
   // "default" checkbox on the Custom Actions tile (Panel.startupCustom): once
   // per shell start, if it's ticked and the saved mode isn't Custom, switch
   // to Custom. Runs when BarWidget installs writeSettings (right after it
@@ -536,12 +508,6 @@ Item {
   // settings, which rebuilds the panel. Cleared by Panel.onOpenedChanged when
   // the panel is closed -- one panel-open is one "session".
   property bool randomizedOnce: false
-
-  // Walkthru audit tags on every control. Default OFF -- 0 turns them on only
-  // for an audit chunk and wants them gone otherwise. Lives here so it survives
-  // the panel rebuild every settings write causes. Flip with the debug IPC
-  // `debugAuditTags true|false`.
-  property bool auditTags: false
 
   // The randomize cluster reveals itself on hover and then stays put for the
   // rest of the panel-open (0: "11a sits there waiting, 11b and 11c are hidden,
@@ -574,29 +540,10 @@ Item {
   }
   onWriteSettingsChanged: Qt.callLater(service.applyStartupMode)
 
-  // "turn the nag off": clears THIS workspace's own Ask (never the global one),
-  // then launches this time. Service only reads settings, so the write goes
-  // through `writeSettings`, which BarWidget (the one thing with shell access
-  // for the plugin's whole life) installs alongside `settings`.
+  // Service only reads settings; BarWidget (the one thing with shell access
+  // for the plugin's whole life) installs this alongside `settings` for the
+  // few writes Service itself needs to make.
   property var writeSettings: null
-  function turnOffAskAndLaunch() {
-    var id = service.askingWs
-    service.askingWs = 0
-    if (id < 1) return
-    if (service.writeSettings) {
-      var next = JSON.parse(JSON.stringify(service.settings || {}))
-      var cfg = service.wsConfig(id)
-      if (!next.workspaces) next.workspaces = {}
-      var w = next.workspaces[String(id)] || {}
-      w.background = w.background || { mode: cfg.background.mode, path: cfg.background.path, poolFolder: cfg.background.poolFolder }
-      w.panes = w.panes || cfg.panes
-      w.autoLaunchEnabled = cfg.autoLaunchEnabled
-      w.autoLaunchAsk = false
-      next.workspaces[String(id)] = w
-      service.writeSettings(next)
-    }
-    service.launchWorkspace(id)
-  }
 
   // Panes' own stderr is passed through to the journal instead of being
   // swallowed, so a failing launch is visible (journalctl --user).
@@ -608,36 +555,6 @@ Item {
         if (t) console.warn("silverstone: launch stderr: " + t)
       }
     }
-  }
-
-  // The prompt is only meaningful for the workspace it was raised on, and
-  // only while that workspace is still empty -- drop it if focus moves on or
-  // a window shows up (checked shortly after the openwindow event, once the
-  // toplevel model has caught up).
-  Timer {
-    id: askRecheck
-    interval: 200
-    onTriggered: {
-      if (service.askingWs === 0) return
-      var ws = service.workspaceById(service.askingWs)
-      if (!ws || ws.toplevels.values.length !== 0) service.askingWs = 0
-    }
-  }
-  onAutoLaunchEnabledChanged: if (!service.autoLaunchEnabled) service.askingWs = 0
-
-  readonly property var promptScreen: {
-    var m = Hyprland.focusedMonitor
-    var ss = Quickshell.screens
-    for (var i = 0; i < ss.length; i++) if (m && ss[i].name === m.name) return ss[i]
-    return ss.length ? ss[0] : null
-  }
-
-  LaunchPrompt {
-    workspaceId: service.askingWs
-    canTurnOff: !service.autoLaunchAsk
-    screen: service.promptScreen
-    onAnswered: function(launch) { service.answerLaunch(launch) }
-    onTurnOffRequested: service.turnOffAskAndLaunch()
   }
 
   function evaluateWorkspace(id) {
@@ -659,7 +576,6 @@ Item {
   function handleHyprlandEvent(event) {
     var name = String(event && event.name ? event.name : "")
     if (name !== "openwindow") return
-    if (service.askingWs !== 0) askRecheck.restart()
     var parts = event.parse ? event.parse(4) : String(event && event.data ? event.data : "").split(",")
     if (String(parts[2] || "") === "org.omarchy.screensaver") service.screensaverActivated()
   }
@@ -670,7 +586,6 @@ Item {
   }
 
   onFocusedIdChanged: {
-    if (service.askingWs !== 0 && service.askingWs !== focusedId) service.askingWs = 0
     // Same cold-start race _applyBootBackgroundOnce guards below: a focus
     // change can fire before BarWidget's deferred pushSettings() lands, which
     // would otherwise run this against the still-default `settings: {}` and
