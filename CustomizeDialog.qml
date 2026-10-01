@@ -162,6 +162,11 @@ Item {
   // (which is then the command/URL, not extra args). Line 2 only appears
   // when an app IS picked and args also has something in it, since that's
   // the one case where args means something separate from line 1.
+  //
+  // Args formatting matches paneDescWrapped() below -- the li tile's own
+  // on-preview label -- not a separate "args: X" convention (0: "the hover
+  // on a li item AL has the same behaviour as the li editor, drop the args
+  // on a line, add --").
   function paneTooltip(idx) {
     // Guarded: the tile repeaters can outlive a pane by a frame when a slot
     // is removed, and an undefined p threw here.
@@ -171,7 +176,7 @@ Item {
     var hasArgs = p.args.trim() !== ""
     if (!hasApp && !hasArgs) return ""
     var line1 = hasApp ? root.appLabelFor(p.appId) : p.args
-    return (hasApp && hasArgs) ? (line1 + "\nargs: " + p.args) : line1
+    return (hasApp && hasArgs) ? (line1 + "\n-- " + p.args) : line1
   }
 
   // Inline summary shown on the collapsed row itself -- the app name if
@@ -606,8 +611,7 @@ Item {
         onHovered: function(isHovered) { addLauncherButton.tipOn = isHovered }
         SsToolTip {
           visible: addLauncherButton.tipOn
-          text: root.savedLauncherCount === 0
-            ? "Add Launcher" : "Add Launcher " + (root.savedLauncherCount + 1)
+          text: "Add AutoLauncher " + (root.savedLauncherCount + 1)
         }
         onClicked: root.addPane()
       }
@@ -1551,7 +1555,10 @@ Item {
   }
 
   // Declared last, so it sits above everything above: while a child panel is
-  // open this eats every click aimed at li (see childOpen).
+  // open, a click anywhere on li closes it (0: "if I click on a parent
+  // panel, it should close a child") -- generalizes what used to be two
+  // narrow holes punched in an otherwise click-eating blanket (the preview,
+  // and the clone glyph) to the whole panel.
   MouseArea {
     id: childBlocker
     anchors.fill: parent
@@ -1559,26 +1566,18 @@ Item {
     enabled: root.childOpen
     hoverEnabled: true
     acceptedButtons: Qt.AllButtons
-    onPressed: {}
     onClicked: function(mouse) {
-      // Second hole: the PREVIEW. A click on it closes whatever child is open
-      // (0: "the WP picker doesnt close on click, prpbably a rule I made but
-      // change it, only a click on the pane though"). It was this blanket
-      // eating the click, so Panel's handler never ran.
-      var pv = mapToItem(previewBox, mouse.x, mouse.y)
-      if (pv.x >= 0 && pv.y >= 0 && pv.x <= previewBox.width && pv.y <= previewBox.height) {
-        root.childDismissRequested()
-        return
-      }
-      // One hole in the blanket: the clone glyph stays live, so pressing it
-      // again closes the child it opened (0: "a click on the parents clone
-      // glyph will close the child"). cloneOpenRequested already toggles.
+      // The clone glyph stays live and keeps its own toggle semantics
+      // (0: "a click on the parents clone glyph will close the child") --
+      // cloneOpenRequested() already closes it on a second press, same
+      // outcome as the generic dismiss below, just via the control that
+      // opened it rather than a blanket close.
       var p = mapToItem(cloneBox, mouse.x, mouse.y)
       if (p.x >= 0 && p.y >= 0 && p.x <= cloneBox.width && p.y <= cloneBox.height) {
-        // The line stays drawn either way now -- closing the child neither
-        // replays it nor winds it back.
         root.cloneOpenRequested()
+        return
       }
+      root.childDismissRequested()
     }
   }
 }

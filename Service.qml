@@ -93,65 +93,37 @@ Item {
   // runtime (default mirrors the theme either way; zero panes never
   // launches anything), so an untouched workspace stays inert without
   // needing its own flag.
-  // `Array.isArray` is unreliable on `panesRaw`: settings pushed down from
-  // BarWidget cross the C++/JS boundary as array-LIKE QJSValue-wrapped
-  // sequences that JSON.stringify handles fine but Array.isArray reports
-  // false for. Round-tripping through JSON gives back a genuine array --
-  // but JSON.stringify silently returns undefined for a value it can't
-  // serialize, and JSON.parse(undefined) throws (it coerces to the literal
-  // string "undefined"). Traced 2026-09-30: an uncaught throw here aborted
-  // the whole wsConfig() call with no visible error, which pinned every
-  // caller downstream -- including the panel's thumbnail previewPath() --
-  // at its no-data default forever. One bad workspace's panes should degrade
-  // to "no panes configured", not blank every thumbnail silently.
-  function _safePanesRaw(panesRaw) {
-    if (!panesRaw) return null
-    try {
-      return JSON.parse(JSON.stringify(panesRaw))
-    } catch (e) {
-      console.warn("silverstone: wsConfig bad panes data, ignoring: " + e)
-      return null
-    }
-  }
-
   function wsConfig(id) {
-    try {
-      var w = (settings && settings.workspaces) ? settings.workspaces[String(id)] : null
-      var bg = (w && w.background) || {}
-      var safePanes = service._safePanesRaw(w && w.panes)
-      return {
-        background: {
-          mode: bg.mode || "default",
-          path: bg.path || "",
-          // `sourceFolder` is this key's pre-rename name; same fallback (and
-          // same "drop it once the migration has run" note) as the one in
-          // Model.normalizeBackground. Read raw here rather than through
-          // normalizeBackground because "" means "inherit the global pool" and
-          // has to survive as "".
-          poolFolder: ((bg.poolFolder !== undefined ? bg.poolFolder : bg.sourceFolder) || service.poolFolder)
-        },
-        panes: Model.normalizePanes(safePanes),
-        autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
-        autoLaunchAsk: !!w && w.autoLaunchAsk === true,
-        launchLayout: (w && w.launchLayout) | 0,
-        // Which pane opens FULL SCREEN, remapped past any empty slot exactly
-        // the way Panel.wsSetting does it. It was missing here, so the launch
-        // path never even saw the pick -- the setting saved, drew its glyph in
-        // li, and then nothing on screen ever opened full screen (0: "or full
-        // screen for one, with the others open behind").
-        fullScreenIndex: Model.normalizeFullScreenIndex(
-          safePanes, (w && typeof w.fullScreenIndex === "number") ? w.fullScreenIndex : -1)
-      }
-    } catch (e) {
-      // Belt-and-suspenders: whatever field breaks next, a workspace falls
-      // back to fully-inert defaults instead of blanking its thumbnail or
-      // wedging autoLaunch for the whole panel.
-      console.warn("silverstone: wsConfig(" + id + ") threw, falling back to defaults: " + e)
-      return {
-        background: { mode: "default", path: "", poolFolder: service.poolFolder },
-        panes: [], autoLaunchEnabled: true, autoLaunchAsk: false,
-        launchLayout: 0, fullScreenIndex: -1
-      }
+    var w = (settings && settings.workspaces) ? settings.workspaces[String(id)] : null
+    var bg = (w && w.background) || {}
+    // `Array.isArray` is unreliable here: settings pushed down from
+    // BarWidget cross the C++/JS boundary as array-LIKE QJSValue-wrapped
+    // sequences that JSON.stringify handles fine but Array.isArray reports
+    // false for. Round-tripping through JSON gives back a genuine array.
+    var panesRaw = w && w.panes
+    return {
+      background: {
+        mode: bg.mode || "default",
+        path: bg.path || "",
+        // `sourceFolder` is this key's pre-rename name; same fallback (and
+        // same "drop it once the migration has run" note) as the one in
+        // Model.normalizeBackground. Read raw here rather than through
+        // normalizeBackground because "" means "inherit the global pool" and
+        // has to survive as "".
+        poolFolder: ((bg.poolFolder !== undefined ? bg.poolFolder : bg.sourceFolder) || service.poolFolder)
+      },
+      panes: Model.normalizePanes(panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null),
+      autoLaunchEnabled: !w || w.autoLaunchEnabled !== false,
+      autoLaunchAsk: !!w && w.autoLaunchAsk === true,
+      launchLayout: (w && w.launchLayout) | 0,
+      // Which pane opens FULL SCREEN, remapped past any empty slot exactly
+      // the way Panel.wsSetting does it. It was missing here, so the launch
+      // path never even saw the pick -- the setting saved, drew its glyph in
+      // li, and then nothing on screen ever opened full screen (0: "or full
+      // screen for one, with the others open behind").
+      fullScreenIndex: Model.normalizeFullScreenIndex(
+        panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null,
+        (w && typeof w.fullScreenIndex === "number") ? w.fullScreenIndex : -1)
     }
   }
 
@@ -159,12 +131,10 @@ Item {
   // for the panel's thumbnails. Never triggers a resolve as a side effect --
   // opening the dropdown shouldn't itself pick a random image.
   function previewPath(id) {
-    // Omarchy Default mode (masterEnabled === false) returns straight from
-    // globalOverride/themeBackground below and never reaches the per-workspace
-    // lookup at all -- the ten workspace configs are only ever consulted while
-    // masterEnabled is true. That keeps Default and Custom genuinely separate
-    // memories with separate paths: a workspace's "custom" path from a past
-    // Custom-mode session can never leak back into what Default mode shows.
+    // Custom always wins regardless of mode -- the Omarchy Default card's
+    // simple picker writes a real "custom" path into every workspace (see
+    // Panel.qml's applyWallpaperToAllWorkspaces), not a separate override,
+    // so it needs to show up here the same way any other custom pick does.
     // Random is only consulted in SilverStone Custom, since that's the only
     // mode that ever actively resolves/caches a random pick. randomCache is
     // in-memory only and empty on every restart, but the last resolved pick
@@ -449,6 +419,16 @@ Item {
   }
   Process { id: fetchRepoProc }
 
+  // A pool-folder change is pure state -- it never redraws any workspace's
+  // wallpaper by itself (0, repeatedly, emphatically: "it only sets the
+  // global pool, the user sets the actual bg, or clicks shuffle, that's when
+  // the wallpapers change"). No reroll here. The new pool is picked up for
+  // free, with zero extra code, the next time anything actually draws: a
+  // real Shuffle (randomizeAllWorkspacesOnce / a single workspace's shuffle,
+  // both read the live-resolved pool per workspace at shuffle time) or an
+  // explicit BG set. resolveRandom(id, false) already prefers the
+  // cached/persisted pick and never redraws unless force=true -- that's
+  // exactly the "leave existing pictures alone" behavior this relies on.
   onPoolFolderRawChanged: service.fetchRepoIfUrl()
 
   // ---- auto-launch -----------------------------------------------------

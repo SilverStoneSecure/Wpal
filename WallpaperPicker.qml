@@ -726,12 +726,30 @@ Item {
       id: sheetBox
       // File mode only: the pool browses with the ladder above it, and a
       // folder full of pictures is not a pool picker.
-      visible: root.version === 2 && root.pickFiles && imageModel.count > 0
+      //
+      // NOT gated on imageModel.count any more -- same class of bug as
+      // stripRow and poolLadder above, just missed in both of those passes
+      // (0: "the BG Picker for a LIE is thrashing... I dont want to chase
+      // buttons around the screen"). Collapsing this ~200px block on every
+      // image-less folder (common while navigating down toward a picture)
+      // resized the whole dialog and everything below it, including the
+      // button row. Keeps its reserved height and says it's empty instead.
+      visible: root.version === 2 && root.pickFiles
       width: column.width
       readonly property int rows: Math.ceil(imageModel.count / 3)
       // Always the body height, never the row count -- the grid scrolls
       // inside it instead of the frame growing and shrinking.
       height: root.bodyH
+
+    Text {
+      anchors.centerIn: parent
+      visible: imageModel.count === 0
+      textFormat: Text.PlainText
+      text: "(no images in this folder)"
+      color: Qt.darker(root.foreground, 1.8)
+      font.family: Style.font.family
+      font.pixelSize: Style.font.bodySmall
+    }
 
     GridView {
       id: sheet
@@ -1023,7 +1041,10 @@ Item {
 
         // The GLOBAL pool itself, back to the omarchy theme folder (0: "add
         // a revert to default button to the picker, it sets the omarchy
-        // theme folder as global default"). Global pool browse only.
+        // theme folder as global default"). Global pool browse only -- 0
+        // tried it alongside "Use Global Pool" on a per-workspace browse too
+        // and bounced it right back ("bring that one back, I dont want three
+        // buttons" -- "that one" = Use Global Pool, i.e. drop back to two).
         Button {
           anchors.verticalCenter: parent.verticalCenter
           visible: !root.pickFiles && root.workspaceId === 0

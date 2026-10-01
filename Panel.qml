@@ -68,9 +68,7 @@ Panel {
   readonly property bool randomizeRevealed: root.service ? root.service.randomizeRevealed === true : false
   readonly property bool randomizeArmed: root.service ? root.service.randomizeArmed === true : false
   // Walkthru audit tags (see AuditTag.qml). Default ON, per 0.
-  // Fallback matches Service.qml's stated default (OFF) instead of ON --
-  // no service yet should never mean "show the walkthru labels".
-  readonly property bool auditTags: root.service ? root.service.auditTags !== false : false
+  readonly property bool auditTags: root.service ? root.service.auditTags !== false : true
   // "default" checkbox on the Custom Actions tile: when on, the shell starts
   // in Custom (SS-Behaviour) regardless of the mode saved last -- applied once
   // per shell start by Service.applyStartupMode.
@@ -363,16 +361,14 @@ Panel {
   //
   // Not a plain binding: serviceFor() is an ordinary function call, not a
   // bindable property read, so QML has no way to notice when the service
-  // singleton comes up after this expression already evaluated once. Traced
-  // live (2026-09-30, SilverAsus first-ever launch): `bar`/`bar.shell` are
-  // both ready well before serviceFor(moduleName) starts returning non-null
-  // -- the service-kind entry point is still being constructed on its own
-  // schedule when this panel's cards already need it, so refreshing only on
-  // bar/opened events can catch every one of those events before the service
-  // exists and never get called again. serviceRetryTimer polls at 150ms
-  // until it succeeds, then stops -- self-healing regardless of which side
-  // wins the race, one-time cost only on a cold panel, no more than a few
-  // ticks in the worst case observed.
+  // singleton comes up after this expression already evaluated once. A
+  // settings write the bar host can't patch in place destroys and recreates
+  // this panel instance (see onOpenedChanged below) -- if serviceFor() still
+  // returns null at the instant the fresh instance evaluates this, the panel
+  // never gets a live service reference again and panelOpenIntent below never
+  // fires, leaving the panel invisible until manually reopened. serviceRetryTimer
+  // polls at 150ms until it succeeds, then stops -- self-healing regardless of
+  // which side wins the race.
   property var service: null
   function refreshService() {
     root.service = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
@@ -758,6 +754,19 @@ Panel {
   // Omarchy's own background switcher (omarchy-theme-bg-switcher -> the
   // menu-images picker over the theme's backgrounds plus the user's own).
   // Detached: it draws its own window and outlives this panel.
+  //
+  // 0: "the omarchy wallpaper picker does not change the wallpaper." Root
+  // cause: this just fired the external picker and threw away its result --
+  // omarchy-theme-bg-switcher only PRINTS the chosen path to stdout, it
+  // never applies anything itself (confirmed by reading it: it's a thin
+  // wrapper around omarchy-menu-images, which also just prints a selection).
+  // Omarchy's own built-in Background plugin wires this exact chain
+  // correctly (bgSwitchProc in
+  // /usr/share/omarchy/shell/plugins/background/Background.qml): capture
+  // the printed path and feed it into omarchy-theme-bg-set, which does the
+  // symlink + live-apply IPC. shuffleDefaultWallpaper() above already does
+  // the equivalent for the shuffle action ("pick ... and save it as the
+  // global override (same as the picker)") -- this was the missing half.
   function openOmarchyBackgroundPicker() {
     root.close()
     omarchyBgPicker.running = true
@@ -766,6 +775,12 @@ Panel {
   Process {
     id: omarchyBgPicker
     command: ["omarchy-theme-bg-switcher"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var path = String(text || "").trim()
+        if (path) root.setGlobalOverride(path)
+      }
+    }
   }
 
   // Is there a single launcher configured anywhere? Gates the Clear button,
@@ -1037,12 +1052,7 @@ Panel {
     // the dismiss area still follow `opened`, never `visible` -- otherwise the
     // user stays locked out for the duration of the fade.
     visible: root.opened || cardFrame.opacity > 0
-    // Guards the extra .window hop too: on a cold start anchorItem.QsWindow
-    // can exist before .window itself does, throwing "Cannot read property
-    // 'screen' of null" for one tick. Harmless/self-healing (this binding
-    // re-fires once .window is set), but the null-check costs nothing.
-    screen: (root.anchorItem && root.anchorItem.QsWindow && root.anchorItem.QsWindow.window)
-      ? root.anchorItem.QsWindow.window.screen : null
+    screen: root.anchorItem && root.anchorItem.QsWindow ? root.anchorItem.QsWindow.window.screen : null
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "silverstone-strip"
@@ -1296,9 +1306,12 @@ Panel {
       // workspace cards + everything expanded) -- this makes it scroll
       // instead of getting clipped off and lost (clip: true above was only
       // ever a last-resort safety net, not the real fix for that).
-      // While one of li's child panels is open, the strip is inert too (0: "a
-      // user cant click on the main panel if a line item child is open as
-      // well"). Declared before the Flickable so it can sit above it, below.
+      // While one of li's child panels is open, a click on the strip closes
+      // it (0: "if I click on a parent panel, it should close a child") --
+      // supersedes the old rule where this just ate the click and did
+      // nothing ("a user cant click on the main panel if a line item child
+      // is open as well"). Declared before the Flickable so it can sit above
+      // it, below.
       MouseArea {
         anchors.fill: parent
         z: 10
@@ -1306,8 +1319,7 @@ Panel {
         enabled: root.childPanelOpen
         hoverEnabled: true
         acceptedButtons: Qt.AllButtons
-        onClicked: {}
-        onPressed: {}
+        onClicked: root.dismissOneLevel()
       }
 
       Flickable {
@@ -1450,16 +1462,12 @@ Panel {
               fontFamily: Style.font.family
               fontSize: Style.font.bodySmall
               verticalPadding: Style.spacing.controlPaddingY
-              // Only "Wpal" gets a hover while selected (0: "in custom mode,
-              // on hover on mode button Wpal... 'Your Already in the
-              // Goodness'") -- "Omarchy" above keeps the original rule (no
-              // hover text on the mode you're already in), 0 didn't ask for
-              // that one to change.
+              // Back to the original rule, same as "Omarchy" above (0: "remove
+              // the goodness hover over on the mode button Wpal") -- no hover
+              // text on the mode you're already in.
               SsToolTip {
-                visible: silverstoneModeButton.hot
-                text: silverstoneModeButton.selected
-                  ? "You're already in the Goodness"
-                  : "Per-WorkSpace Backgrounds\nand AutoLaunch"
+                visible: silverstoneModeButton.hot && !silverstoneModeButton.selected
+                text: "Per-WorkSpace Backgrounds\nand AutoLaunch"
               }
               onClicked: root.setMasterEnabled(true)
             }
@@ -1467,63 +1475,14 @@ Panel {
           }
         }
 
-        // ---- global pool "..." ------------------------------------------
-        Item {
-          visible: root.masterEnabled
-          width: root.settingsWidth
-          implicitHeight: globalDotsRow.implicitHeight
-
-          RowLayout {
-            id: globalDotsRow
-            width: root.settingsWidth
-            spacing: Style.spacing.sm
-
-            Item { Layout.fillWidth: true }
-
-            // The pool control itself: dimmed, hard right on this line,
-            // between the mode buttons above and the shuffle below (0: "move
-            // the ... on main to justified right above the shuffle below the
-            // button").
-            Text {
-              id: globalDots
-              Layout.alignment: Qt.AlignVCenter
-              visible: root.masterEnabled
-              textFormat: Text.PlainText
-              text: "..."
-              AuditTag { tag: "4"; shown: root.auditTags }
-              color: root.contentForeground
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              font.bold: true
-
-              MouseArea {
-                id: globalDotsMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                // Opens the global pool picker as a popup; second click closes
-                // it. Blocked while li is open -- a global change shouldn't
-                // land in the middle of a per-workspace edit.
-                onClicked: {
-                  if (root.activeWorkspace > 0) return
-                  if (root.pendingBrowse && root.pendingBrowse.kind === "pool") root.cancelBrowse()
-                  else root.beginBrowsePool()
-                }
-
-                SsToolTip {
-                  visible: globalDotsMouse.containsMouse
-                  text: "Set Global Pool"
-                  fontSize: Style.font.body
-                }
-              }
-            }
-          }
-        }
-
         // The old inline "Global Wallpaper Pool" block (separator, header,
         // path TextField + Browse -- tags 6/7/8a/8b) lived here and is GONE:
-        // opening it grew the strip downward. The "..." above now opens the
-        // picker as a popup instead. Those four tags are retired.
+        // opening it grew the strip downward. The "..." opens the picker as a
+        // popup instead. Those four tags are retired. It used to have its own
+        // row here, right-justified above the shuffle button; now it sits
+        // beside the shuffle button in the WorkSpaces heading row below,
+        // just to its left (0: "drop the ... on main to just left of the
+        // recycle button").
 
         // Heading for the card list (0: "add a Label to Above the list items:
         // 'WorkSpaces'"), with the Randomize cluster directly under it and the
@@ -1558,6 +1517,43 @@ Panel {
             }
 
             Item { Layout.fillWidth: true }
+
+            // The global pool control, moved in beside the shuffle button
+            // (0: "drop the ... on main to just left of the recycle
+            // button") -- used to sit right-justified in its own row above.
+            Text {
+              id: globalDots
+              Layout.alignment: Qt.AlignVCenter
+              visible: root.masterEnabled
+              textFormat: Text.PlainText
+              text: "..."
+              AuditTag { tag: "4"; shown: root.auditTags }
+              color: root.contentForeground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+              font.bold: true
+
+              MouseArea {
+                id: globalDotsMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                // Opens the global pool picker as a popup; second click closes
+                // it. Blocked while li is open -- a global change shouldn't
+                // land in the middle of a per-workspace edit.
+                onClicked: {
+                  if (root.activeWorkspace > 0) return
+                  if (root.pendingBrowse && root.pendingBrowse.kind === "pool") root.cancelBrowse()
+                  else root.beginBrowsePool()
+                }
+
+                SsToolTip {
+                  visible: globalDotsMouse.containsMouse
+                  text: "Set Global Pool"
+                  fontSize: Style.font.body
+                }
+              }
+            }
 
             PanelActionButton {
               id: shuffleButton
@@ -2215,7 +2211,24 @@ Panel {
         // resolved wsPool target above, so it's reused as-is rather than
         // re-deriving it from pendingBrowse a second time.
         onPoolResetRequested: root.clearWsPool(browsePicker.workspaceId)
-        onGlobalPoolResetRequested: root.setPoolFolder("")
+        // Resets the pool SELECTION back to the omarchy theme's own
+        // backgrounds folder (Model.resolveWallpaperFolder's fallback for a
+        // blank poolFolder). It does not force any picture on screen -- the
+        // randomizer draws from whichever pool is selected on its own normal
+        // cycle. The write itself is confirmed working (verified via IPC:
+        // poolFolder lands as "" and Service.cascadePoolChange rerolls every
+        // workspace with no override of its own) -- what was actually broken
+        // is that this open picker's own `folder` was a one-shot assignment
+        // from beginBrowsePool(), never refreshed after the click, so 0 saw
+        // no visible change and reported "does nothing." Compute the default
+        // folder directly rather than reading root.poolFolder right back --
+        // that property is fed by the same async settings round-trip as the
+        // write itself (see trap 2 above), so it can still read the OLD
+        // value here.
+        onGlobalPoolResetRequested: {
+          root.setPoolFolder("")
+          browsePicker.folder = Model.resolveWallpaperFolder("", Quickshell.env("HOME"))
+        }
       }
     }
   }
