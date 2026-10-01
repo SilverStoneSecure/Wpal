@@ -671,7 +671,13 @@ Item {
 
   onFocusedIdChanged: {
     if (service.askingWs !== 0 && service.askingWs !== focusedId) service.askingWs = 0
-    evaluateWorkspace(focusedId)
+    // Same cold-start race _applyBootBackgroundOnce guards below: a focus
+    // change can fire before BarWidget's deferred pushSettings() lands, which
+    // would otherwise run this against the still-default `settings: {}` and
+    // cache a wrong random pick that never gets retried. Once the first real
+    // settings push has landed, _applyBootBackgroundOnce has already done
+    // today's first evaluate, so later focus changes are free to run here.
+    if (service._bootBackgroundApplied) evaluateWorkspace(focusedId)
   }
   // Apply immediately on a mode switch, not just on the next focus change.
   onMasterEnabledChanged: applyBackground(service.focusedId)

@@ -704,17 +704,34 @@ Panel {
   // still preserving a genuine override -- matching what CustomizeDialog's
   // own poolOverridden check already treats as the "not customized" sentinel
   // (empty string) everywhere else in this file.
+  // The raw stored poolFolder/sourceFolder for one workspace, "" when it has
+  // never been given its own pool override -- unlike wsSetting()'s (always
+  // resolved, never empty, see the comment above). Shared by
+  // randomizeAllWorkspaces() below and by the "Use Global Pool" reset
+  // button's visibility (there's nothing to reset to the global pool when
+  // this is already empty).
+  function wsPoolFolderRaw(id) {
+    var rawWs = (root.settings && root.settings.workspaces) ? root.settings.workspaces[String(id)] : null
+    var rawBg = (rawWs && rawWs.background) || {}
+    return rawBg.poolFolder !== undefined ? rawBg.poolFolder
+      : (rawBg.sourceFolder !== undefined ? rawBg.sourceFolder : "")
+  }
+
   function randomizeAllWorkspaces() {
     var next = Util.cloneJson(root.settings || {})
     if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
     for (var id = 1; id <= 10; id++) {
       var cur = root.wsSetting(id)
-      var rawWs = (root.settings && root.settings.workspaces) ? root.settings.workspaces[String(id)] : null
-      var rawBg = (rawWs && rawWs.background) || {}
-      var rawPool = rawBg.poolFolder !== undefined ? rawBg.poolFolder
-        : (rawBg.sourceFolder !== undefined ? rawBg.sourceFolder : "")
+      var rawPool = root.wsPoolFolderRaw(id)
       next.workspaces[String(id)] = {
-        background: { mode: "random", path: cur.background.path, poolFolder: rawPool,
+        // path: "", not cur.background.path -- randomizeWorkspace() (the
+        // per-workspace reroll) clears it for the same reason: Service's
+        // cold-boot fallback in resolveRandom() treats a non-empty path as a
+        // trustworthy last-known random pick once randomCache has no entry
+        // yet. Carrying a workspace's old CUSTOM path through here let a
+        // focus switch during the async reroll window re-apply that stale
+        // custom image as if it were a valid random one.
+        background: { mode: "random", path: "", poolFolder: rawPool,
           source: "pool", poolPath: "", outsidePath: cur.background.outsidePath },
         panes: cur.panes,
         autoLaunchEnabled: cur.autoLaunchEnabled,
@@ -2193,6 +2210,11 @@ Panel {
         workspaceId: (root.pendingBrowse
           && (root.pendingBrowse.kind === "image" || root.pendingBrowse.kind === "wsPool"))
           ? root.pendingBrowse.workspaceId : 0
+        // "Use Global Pool" only means something when this workspace actually
+        // has its own pool override to reset -- otherwise clicking it is a
+        // no-op (clearWsPool on an already-empty poolFolder).
+        poolOverridden: (root.pendingBrowse && root.pendingBrowse.kind === "wsPool")
+          ? !!root.wsPoolFolderRaw(root.pendingBrowse.workspaceId) : false
         version: root.pickerVersion
         onVersionPicked: function(v) { root.setPickerVersion(v) }
         onChosen: function(p) { root.finishBrowse(p) }

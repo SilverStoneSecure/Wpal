@@ -40,6 +40,10 @@ Item {
   // WS<N> WallPaper"). 0 when the pick isn't tied to one workspace -- the
   // global pool browse and Omarchy Default's single picker.
   property int workspaceId: 0
+  // Whether THIS workspace has its own raw pool override (as opposed to
+  // following the global pool) -- gates "Use Global Pool" below so it isn't
+  // shown as a no-op when there's nothing to reset.
+  property bool poolOverridden: false
   // 1 = Two Pane, 2 = Contact Sheet, 3 = Stage. 0 picked Contact Sheet, so
   // that is the default; the cycler stays for now so 1 and 3 are still
   // reachable for comparison.
@@ -1016,7 +1020,14 @@ Item {
     // folder it lives in.
     Item {
       width: column.width
-      implicitHeight: buttonRow.implicitHeight
+      // Read a button's own implicitHeight, not the Row's: Row excludes
+      // invisible children from its own implicit size, and in the
+      // pickFiles+workspaceId===0 case (single global-override image) every
+      // button in the row is hidden, which collapsed this whole area to 0 --
+      // a visible panel-size change across picker invocations. A button's
+      // implicitHeight is unaffected by its own visibility, so this stays
+      // fixed no matter which buttons are shown.
+      implicitHeight: useFolderButton.implicitHeight
 
       Row {
         id: buttonRow
@@ -1031,7 +1042,7 @@ Item {
         // a single-image pick.
         Button {
           anchors.verticalCenter: parent.verticalCenter
-          visible: !root.pickFiles && root.workspaceId > 0
+          visible: !root.pickFiles && root.workspaceId > 0 && root.poolOverridden
           text: "Use Global Pool"
           bordered: true
           foreground: root.foreground
