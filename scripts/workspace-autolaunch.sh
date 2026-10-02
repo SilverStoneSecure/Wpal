@@ -99,6 +99,39 @@ desktop_exec() {
     | sed -E 's/%[a-zA-Z]//g; s/[[:space:]]+$//'
 }
 
+# A webapp .desktop's own URL, pulled out with a plain regex instead of
+# word-splitting its Exec line -- the Exec value may quote the URL
+# ("https://...") to protect it, and quotes inside an already-expanded shell
+# variable are just literal characters, not re-parsed as quoting. Re-using
+# desktop_exec's unquoted-word-splitting trick (below) on a quoted Exec line
+# would pass the literal quote characters through as part of the URL.
+webapp_url_for() {
+  desktop_exec "$1" | grep -oE 'https?://[^"'"'"' ]+' | head -1
+}
+
+# Chromium is a singleton per profile: `--app=URL` sent to an ALREADY-RUNNING
+# chromium (e.g. the real browser pane on WS1) gets forwarded to it instead of
+# opening its own app-mode window, which is slow/unreliable once that session
+# has a lot of tabs/extensions loaded -- this is what "the webapp opens in
+# Chrome instead" turned out to be (0, WS0/WS10 SilverStone Camera, verified
+# by testing: forwarded opens eventually land as a real app window, but only
+# after the main session's singleton gets around to it). A dedicated
+# `--user-data-dir` per (app, workspace) sidesteps the singleton entirely --
+# always its own process, always its own window -- and keys it by workspace
+# so the same webapp configured on two different workspaces gets two
+# independent instances, while relaunching it on the SAME workspace reuses
+# the same one (0: "a different instance of the same program on any WS, or
+# the same"). Each webapp .desktop also carries its own non-workspace-keyed
+# `--user-data-dir` as a baseline, so a manual launch from the app menu
+# (outside this script) gets the same isolation; the one built here, keyed by
+# workspace, simply overrides it (Chromium takes the last `--user-data-dir`).
+webapp_profile_dir() {
+  local id=$1 slug
+  slug=$(printf '%s' "$id" | tr -c 'A-Za-z0-9' '-' | tr -s '-')
+  slug=${slug#-}; slug=${slug%-}
+  printf '%s/.local/share/omarchy-webapps/%s-ws%s' "$HOME" "$slug" "$ws"
+}
+
 # An app pane's args are SHELL ARGS for the app ("claude", "ssh T420",
 # "--incognito"), and `gtk-launch app.desktop <args>` cannot deliver them:
 # GLib treats every trailing word as a FILE, resolves it against the cwd and
@@ -109,12 +142,19 @@ desktop_exec() {
 # So: with args, run the desktop entry's own Exec line and append them;
 # without args, keep the proven gtk-launch path.
 launch_app() {
-  local id=$1 args=$2 file exec_line
+  local id=$1 args=$2 file exec_line url profile_dir
+  file=$(desktop_file "$id") && exec_line=$(desktop_exec "$file")
+  if [[ -n ${exec_line:-} && $exec_line == *omarchy-launch-webapp* ]] \
+    && url=$(webapp_url_for "$file") && [[ -n $url ]]; then
+    profile_dir=$(webapp_profile_dir "$id")
+    mkdir -p "$profile_dir"
+    setsid -f uwsm-app -- omarchy-launch-webapp "$url" --user-data-dir="$profile_dir" $args </dev/null >/dev/null
+    return
+  fi
   if [[ -z $args ]]; then
     setsid -f uwsm-app -- gtk-launch "${id}.desktop" </dev/null >/dev/null
     return
   fi
-  file=$(desktop_file "$id") && exec_line=$(desktop_exec "$file")
   if [[ -n ${exec_line:-} ]]; then
     # Unquoted on purpose, both of them: the Exec line and the user's args are
     # meant as words (this is the user's own local config, not external input).
