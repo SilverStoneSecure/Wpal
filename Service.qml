@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Qt.labs.folderlistmodel
 import qs.Commons
 import "Model.js" as Model
 
@@ -39,6 +40,36 @@ Item {
   readonly property string poolFolder: Model.resolveWallpaperFolder(service.poolFolderRaw, service.home)
 
   property string themeBackground: ""
+
+  // themeBackground only fills in once the async `readlink` below finishes
+  // (see readThemeBg/currentBackgroundLink), so the first ever panel open on
+  // a fresh install -- before that completes, or if the live symlink is ever
+  // missing -- previously had no "default wallpaper" to fall back on at all:
+  // previewPath()/applyBackground() returned/applied "" and every untouched
+  // card (Omarchy mode's lone card, every one of Custom mode's ten li items)
+  // sat blank with nothing actually drawn to the desktop either. This scans
+  // Omarchy's own current-theme backgrounds folder -- the same one the
+  // Omarchy Default pool already randomizes from -- so there's always a real
+  // image on disk to show/apply, independent of whether the live symlink has
+  // resolved yet.
+  FolderListModel {
+    id: defaultWallpapersModel
+    folder: Util.fileUrl(Model.defaultWallpapersDir(service.home))
+    showDirs: false
+    showDotAndDotDot: false
+    caseSensitive: false
+    nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.gif"]
+    sortField: FolderListModel.Name
+  }
+  readonly property string defaultWallpaperFallback: defaultWallpapersModel.count > 0
+    ? String(defaultWallpapersModel.get(0, "filePath") || "") : ""
+
+  // What "the default wallpaper" actually resolves to: the live theme
+  // background once it's loaded, else the fallback above. Every read/apply
+  // site that means "show/use the default wallpaper" goes through this, not
+  // the raw themeBackground, so there is always something to show.
+  readonly property string resolvedThemeBackground: service.themeBackground || service.defaultWallpaperFallback
+
   property var randomCache: ({})   // { "3": "/abs/path.jpg" } -- cleared on theme change
   property var lastLaunchAt: ({})  // { "3": <ms epoch> } -- debounce
 
@@ -137,11 +168,11 @@ Item {
     // to the theme default rather than showing blank.
     // Omarchy Default mode ignores every workspace setting: the override if
     // there is one, else the system/theme background.
-    if (!service.masterEnabled) return service.globalOverride || service.themeBackground
+    if (!service.masterEnabled) return service.globalOverride || service.resolvedThemeBackground
     var cfg = service.wsConfig(id)
     if (cfg.background.mode === "custom" && cfg.background.path) return cfg.background.path
-    if (service.masterEnabled && cfg.background.mode === "random") return service.randomCache[String(id)] || cfg.background.path || service.themeBackground
-    return service.themeBackground
+    if (service.masterEnabled && cfg.background.mode === "random") return service.randomCache[String(id)] || cfg.background.path || service.resolvedThemeBackground
+    return service.resolvedThemeBackground
   }
 
   function workspaceById(id) {
@@ -213,7 +244,7 @@ Item {
           picks[String(id)] = pick
           service.persistRandomPicks(picks)
         }
-        if (service._randomProcApply) service.setInstant(pick || service.themeBackground)
+        if (service._randomProcApply) service.setInstant(pick || service.resolvedThemeBackground)
       }
     }
   }
@@ -386,11 +417,11 @@ Item {
     // one is set, else the live theme/system background -- saved workspace
     // settings are ignored, so switching back from Custom always reverts.
     // Custom applies each workspace's own custom/random setting.
-    if (!service.masterEnabled) { service.setInstant(service.globalOverride || service.themeBackground); return }
+    if (!service.masterEnabled) { service.setInstant(service.globalOverride || service.resolvedThemeBackground); return }
     var cfg = service.wsConfig(id)
     if (cfg.background.mode === "custom" && cfg.background.path) { service.setInstant(cfg.background.path); return }
     if (service.masterEnabled && cfg.background.mode === "random") { service.resolveRandom(id, false); return }
-    service.setInstant(service.themeBackground)  // "default" (or Omarchy Default mode): live-mirror
+    service.setInstant(service.resolvedThemeBackground)  // "default" (or Omarchy Default mode): live-mirror
   }
 
   // ---- wallpaper source folder (url case) -------------------------------
