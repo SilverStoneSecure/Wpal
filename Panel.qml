@@ -997,7 +997,15 @@ Panel {
     // the dismiss area still follow `opened`, never `visible` -- otherwise the
     // user stays locked out for the duration of the fade.
     visible: root.opened || cardFrame.opacity > 0
-    screen: root.anchorItem && root.anchorItem.QsWindow ? root.anchorItem.QsWindow.window.screen : null
+    // anchorWindow (declared below on this same PanelWindow) already guards
+    // against QsWindow.window itself being null -- hitting that null window
+    // is exactly what a live `omarchy plugin enable` on an already-running
+    // shell does (the anchor item's QsWindow exists before its .window is
+    // attached), unlike a plugin present in shell.json from shell startup.
+    // The old inline check here only covered anchorItem/QsWindow, not
+    // .window, so it threw "Cannot read property 'screen' of null" and broke
+    // the whole bar-widget delegate -- no hover, no click -- on first enable.
+    screen: anchorWindow ? anchorWindow.screen : null
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "silverstone-strip"
