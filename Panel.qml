@@ -365,8 +365,16 @@ Panel {
   // polls at 150ms until it succeeds, then stops -- self-healing regardless of
   // which side wins the race.
   property var service: null
+  property int _serviceProbeCount: 0
   function refreshService() {
-    root.service = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
+    var result = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
+    if (root._serviceProbeCount < 10) {
+      root._serviceProbeCount++
+      console.log("silverstone: DEBUG refreshService #" + root._serviceProbeCount
+        + " hasBar=[" + !!root.bar + "] hasShell=[" + !!(root.bar && root.bar.shell)
+        + "] moduleName=[" + root.moduleName + "] result=[" + result + "]")
+    }
+    root.service = result
   }
   Component.onCompleted: root.refreshService()
   onBarChanged: root.refreshService()
