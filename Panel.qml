@@ -370,9 +370,12 @@ Panel {
     var result = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
     if (root._serviceProbeCount < 10) {
       root._serviceProbeCount++
+      var shellPluginId = (root.bar && root.bar.shell && ("pluginId" in root.bar.shell))
+        ? root.bar.shell.pluginId : "<none>"
       console.log("silverstone: DEBUG refreshService #" + root._serviceProbeCount
         + " hasBar=[" + !!root.bar + "] hasShell=[" + !!(root.bar && root.bar.shell)
-        + "] moduleName=[" + root.moduleName + "] result=[" + result + "]")
+        + "] moduleName=[" + root.moduleName + "] shellPluginId=[" + shellPluginId
+        + "] result=[" + result + "]")
     }
     root.service = result
   }
