@@ -185,7 +185,14 @@ Item {
 
   Process {
     id: readThemeBg
-    command: ["readlink", "-f", service.home + "/.local/state/omarchy/current/background"]
+    // -e (not -f): -f canonicalizes best-effort and returns a path even when
+    // the final target is missing, so a dangling symlink silently poisons
+    // themeBackground with a bogus-but-truthy value and resolvedThemeBackground's
+    // `||` never falls through to defaultWallpaperFallback. -e requires the
+    // final target to actually exist, failing (empty stdout) on a dangling
+    // symlink -- see the SilverAsus theme-state-inconsistency bug referenced
+    // in Panel.qml's _seedDefaultSnapshotOnce comment.
+    command: ["readlink", "-e", service.home + "/.local/state/omarchy/current/background"]
     stdout: StdioCollector {
       onStreamFinished: {
         var p = String(text || "").trim()
