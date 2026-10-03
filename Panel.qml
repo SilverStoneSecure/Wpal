@@ -417,6 +417,7 @@ Panel {
     }
   }
   onServiceChanged: {
+    root._seedDefaultSnapshotOnce()
     if (root.service && root.service.panelOpenIntent && !root.opened) root.open()
     if (root.service && root.service.activeWorkspaceIntent !== -1) {
       root.activeWorkspace = root.service.activeWorkspaceIntent
@@ -529,7 +530,7 @@ Panel {
     // wallpaper can show it until SilverStone mode is on, which looks like
     // the picker/pane editor is just broken. Auto-switch modes right here,
     // in the same settings write, instead of letting someone hit that twice.
-    if (!root.masterEnabled) next.enabled = true
+    if (!root.masterEnabled) { console.log("silverstone: DEBUG updateWorkspace auto-enable"); next.enabled = true }
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
     // The settings write above updates what previewFor()/the card thumbnail
     // show (they just read settings), but nothing else re-applies the live
@@ -559,7 +560,7 @@ Panel {
     }
     if (done.length === 0) return
     // Same silent-trap guard as updateWorkspace: clones can't show in Omarchy Default.
-    if (!root.masterEnabled) next.enabled = true
+    if (!root.masterEnabled) { console.log("silverstone: DEBUG cloneWorkspace auto-enable"); next.enabled = true }
     root.cloneDialogOpen = false
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
     // The settings carry the pool; this carries the actual PICTURE, so the
@@ -582,6 +583,7 @@ Panel {
   onCloneDialogOpenChanged: if (root.service) root.service.cloneOpenIntent = root.cloneDialogOpen
 
   function setMasterEnabled(v) {
+    console.log("silverstone: DEBUG setMasterEnabled called with v=" + v)
     // Switching modes dismisses whatever picker/dialog is open (e.g. the
     // Omarchy-mode wallpaper picker) -- before the write, since the write
     // recreates this panel and would otherwise restore the stale dialog.
@@ -820,8 +822,41 @@ Panel {
 
   function setGlobalOverride(path) {
     var next = Util.cloneJson(root.settings || {})
+    console.log("silverstone: DEBUG setGlobalOverride before-write next=" + JSON.stringify(next))
     next.globalOverride = path
     if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+  }
+
+  // One-time: if globalOverride has never been set (a brand-new install, or
+  // any existing one from before this existed -- SilverAsus/T420 both
+  // qualify today), seed it with whatever's actually on screen right now
+  // instead of leaving Default mode to recompute "the default background"
+  // live forever. Recomputing live is what broke on SilverAsus: Omarchy's
+  // own theme-tracking state (theme.name vs. the live background symlink)
+  // was internally inconsistent there, so the recompute -- and Omarchy's own
+  // picker, which scans the same state -- both came up with nothing. Once
+  // seeded, globalOverride behaves exactly as it already did: the Omarchy
+  // picker and Shuffle keep overwriting it normally (0: "continue from
+  // there"). Never touches a value that's already set, including one a user
+  // set on a previous run. Mirrors Service.qml's own
+  // _bootBackgroundApplied/_applyBootBackgroundOnce gate and this file's own
+  // serviceRetryTimer self-healing idiom just above.
+  property bool _defaultSnapshotSeeded: false
+  function _seedDefaultSnapshotOnce() {
+    if (root._defaultSnapshotSeeded || !root.service) return
+    if (root.globalOverride !== "") { root._defaultSnapshotSeeded = true; return }
+    var resolved = root.service.resolvedThemeBackground
+    if (!resolved) return
+    root._defaultSnapshotSeeded = true
+    root.setGlobalOverride(resolved)
+  }
+  onSettingsChanged: root._seedDefaultSnapshotOnce()
+  Timer {
+    id: defaultSnapshotRetryTimer
+    interval: 150
+    repeat: true
+    running: !root._defaultSnapshotSeeded
+    onTriggered: root._seedDefaultSnapshotOnce()
   }
 
   // Local browsing goes through WallpaperPicker.qml's own FolderListModel,
