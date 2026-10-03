@@ -846,6 +846,9 @@ Panel {
     if (root._defaultSnapshotSeeded || !root.service) return
     if (root.globalOverride !== "") { root._defaultSnapshotSeeded = true; return }
     var resolved = root.service.resolvedThemeBackground
+    console.log("silverstone: DEBUG seed check themeBackground=[" + root.service.themeBackground
+      + "] defaultWallpaperFallback=[" + root.service.defaultWallpaperFallback
+      + "] home=[" + root.service.home + "] resolved=[" + resolved + "]")
     if (!resolved) return
     root._defaultSnapshotSeeded = true
     root.setGlobalOverride(resolved)
