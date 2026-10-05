@@ -12,6 +12,7 @@ real desktop, settings, or wallpaper.
 ./tests/run.sh            # all scenarios
 ./tests/run.sh fresh-install
 ./tests/run.sh escape-cascade
+./tests/run.sh replacement-bar
 ```
 
 ## Requirements
@@ -40,6 +41,11 @@ real desktop, settings, or wallpaper.
   confirms the panel closes in exactly 2 presses (regression test for the
   2026-10-05 bug where a fast double-tap needed a 3rd press — see
   `Panel.qml`'s `escapeGuardUntil`).
+- `replacement-bar` — same as `fresh-install`, but boots under a cloned
+  bar.id (`WPAL_TEST_REPLACEMENT_BAR=1` in `harness.sh`), reproducing
+  SilverAsus's real `chad.bar` setup where `serviceFor()` always returns
+  null. Regression test for the blank-wallpaper-preview bug fixed by
+  `BarWidget.qml`'s `hostService`/`effectiveService` fallback.
 
 ## Adding a scenario
 

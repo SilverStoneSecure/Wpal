@@ -18,8 +18,28 @@ BarWidget {
   id: root
   moduleName: "silverstone.wpal"
 
+  // Omarchy only grants serviceFor() a working facade under the trusted
+  // stock bar (omarchy.bar) -- any replacement bar (e.g. a clone made via
+  // `omarchy plugin clone omarchy.bar`) gets a deliberately service-less
+  // facade and serviceFor() always returns null there, by design. When that
+  // happens, fall back to a privately-instantiated copy of our own
+  // Service.qml, the same pattern io.github.huligabuliga.omagoocal uses for
+  // this exact problem. Service.qml needs nothing from the host besides
+  // `settings` (pushed below) and `writeSettings` (a callback), so a private
+  // copy is exactly as capable as the host-managed singleton -- just not
+  // shared across widget instances, which only matters if this bar widget
+  // is ever shown on 2+ screens at once under a replacement bar (accepted
+  // tradeoff, not triggered by either machine's current config).
+  readonly property var hostService: (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
+  readonly property var effectiveService: hostService || privateServiceLoader.item
+  Loader {
+    id: privateServiceLoader
+    active: !!root.bar && !root.hostService
+    source: Qt.resolvedUrl("Service.qml")
+  }
+
   function pushSettings() {
-    var svc = root.bar && root.bar.shell ? root.bar.shell.serviceFor(root.moduleName) : null
+    var svc = root.effectiveService
     if (!svc) return
     svc.settings = root.settings
     // Service only reads settings; this is how it asks for one write (see
@@ -30,6 +50,12 @@ BarWidget {
     }
   }
 
+  // The Loader resolving the private fallback is async, so it can arrive
+  // after this widget's own settings/bar have already been pushed once --
+  // re-push and re-inject so a late-arriving private instance isn't left
+  // with stale/no settings.
+  onEffectiveServiceChanged: { pushSettings(); injectPanel() }
+
   function injectPanel() {
     var target = panelLoader.item
     if (!target) return
@@ -37,6 +63,7 @@ BarWidget {
     if ("settings" in target) target.settings = root.settings
     if ("anchorItem" in target) target.anchorItem = button
     if ("hostWidget" in target) target.hostWidget = root
+    if ("service" in target) target.service = root.effectiveService
   }
 
   // One-shot rewrite of the pre-rename pool keys (Model.migrateSettings).

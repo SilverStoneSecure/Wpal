@@ -354,47 +354,18 @@ Panel {
   // workspace, cached random picks) and to trigger an immediate reroll.
   // Not used for writes -- those always go through updateWorkspace below.
   //
-  // Not a plain binding: serviceFor() is an ordinary function call, not a
-  // bindable property read, so QML has no way to notice when the service
-  // singleton comes up after this expression already evaluated once. A
-  // settings write the bar host can't patch in place destroys and recreates
-  // this panel instance (see onOpenedChanged below) -- if serviceFor() still
-  // returns null at the instant the fresh instance evaluates this, the panel
-  // never gets a live service reference again and panelOpenIntent below never
-  // fires, leaving the panel invisible until manually reopened. serviceRetryTimer
-  // polls at 150ms until it succeeds, then stops -- self-healing regardless of
-  // which side wins the race.
+  // Plain injected property, exactly like anchorItem: BarWidget.qml resolves
+  // the real instance (host singleton under a trusted bar, or a private
+  // fallback Service.qml under a replacement bar, since serviceFor() is
+  // deliberately null there -- see BarWidget.qml's effectiveService) and
+  // hands it down via injectPanel(). No self-lookup here.
   property var service: null
-  property int _serviceProbeCount: 0
-  function refreshService() {
-    var result = (root.bar && root.bar.shell) ? root.bar.shell.serviceFor(root.moduleName) : null
-    if (root._serviceProbeCount < 10) {
-      root._serviceProbeCount++
-      var shellPluginId = (root.bar && root.bar.shell && ("pluginId" in root.bar.shell))
-        ? root.bar.shell.pluginId : "<none>"
-      console.log("silverstone: DEBUG refreshService #" + root._serviceProbeCount
-        + " hasBar=[" + !!root.bar + "] hasShell=[" + !!(root.bar && root.bar.shell)
-        + "] moduleName=[" + root.moduleName + "] shellPluginId=[" + shellPluginId
-        + "] result=[" + result + "]")
-    }
-    root.service = result
-  }
-  Component.onCompleted: root.refreshService()
-  onBarChanged: root.refreshService()
-  Timer {
-    id: serviceRetryTimer
-    interval: 150
-    repeat: true
-    running: !root.service
-    onTriggered: root.refreshService()
-  }
 
   // Keep the service's open-intent in sync with reality, and restore it the
   // moment a fresh instance gets a service reference -- a settings write the
   // bar host can't patch in place destroys and recreates the bar-widget/
   // panel instance, but the service (a kept instance) survives that.
   onOpenedChanged: {
-    root.refreshService()
     if (root.service) root.service.panelOpenIntent = root.opened
     // Pressing the bar glyph while anything of ours is open shuts the lot and
     // resets to first-open state -- no picker, no li, no launcher editor, no
@@ -850,16 +821,14 @@ Panel {
   // picker and Shuffle keep overwriting it normally (0: "continue from
   // there"). Never touches a value that's already set, including one a user
   // set on a previous run. Mirrors Service.qml's own
-  // _bootBackgroundApplied/_applyBootBackgroundOnce gate and this file's own
-  // serviceRetryTimer self-healing idiom just above.
+  // _bootBackgroundApplied/_applyBootBackgroundOnce gate, and self-heals the
+  // same way defaultSnapshotRetryTimer below does: retry on a timer until
+  // root.service (now injected, see above) actually arrives.
   property bool _defaultSnapshotSeeded: false
   function _seedDefaultSnapshotOnce() {
     if (root._defaultSnapshotSeeded || !root.service) return
     if (root.globalOverride !== "") { root._defaultSnapshotSeeded = true; return }
     var resolved = root.service.resolvedThemeBackground
-    console.log("silverstone: DEBUG seed check themeBackground=[" + root.service.themeBackground
-      + "] defaultWallpaperFallback=[" + root.service.defaultWallpaperFallback
-      + "] home=[" + root.service.home + "] resolved=[" + resolved + "]")
     if (!resolved) return
     root._defaultSnapshotSeeded = true
     root.setGlobalOverride(resolved)

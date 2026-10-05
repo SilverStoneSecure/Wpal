@@ -79,12 +79,30 @@ _harness_setup_once() {
 
   ln -sfn "$WPAL_REPO" "$TEST_HOME/.config/omarchy/plugins/silverstone.wpal"
 
-  python3 - "$TEST_HOME/.config/omarchy/shell.json" <<'PY'
+  # Opt-in: reproduce SilverAsus's exact bug class -- a bar.id pointing at a
+  # replacement bar (made via `omarchy plugin clone omarchy.bar --edit`)
+  # instead of the stock omarchy.bar. Built by hand (plain file copy + jq
+  # manifest edit, same as omarchy-plugin-clone's copy_plugin/update_manifest
+  # steps) rather than shelling out to the real clone command, which talks to
+  # the REAL running shell's IPC socket (rescanPlugins/enable) regardless of
+  # $HOME and would touch the actual desktop, not this throwaway one.
+  if [[ "${WPAL_TEST_REPLACEMENT_BAR:-0}" == "1" ]]; then
+    local clone_dir="$TEST_HOME/.config/omarchy/plugins/wpaltest.bar"
+    rm -rf "$clone_dir"
+    cp -aL /usr/share/omarchy/shell/plugins/bar/. "$clone_dir/"
+    jq '.id = "wpaltest.bar" | .name = "My Bar" | .omarchy = ((.omarchy // {}) + {clonedFrom: "omarchy.bar"})' \
+      "$clone_dir/manifest.json" > "$clone_dir/manifest.json.tmp"
+    mv "$clone_dir/manifest.json.tmp" "$clone_dir/manifest.json"
+  fi
+
+  python3 - "$TEST_HOME/.config/omarchy/shell.json" <<PY
 import json, sys
 out = sys.argv[1]
 with open("/usr/share/omarchy/config/omarchy/shell.json") as f:
     d = json.load(f)
 d["bar"]["layout"]["right"].append({"id": "silverstone.wpal"})
+if "${WPAL_TEST_REPLACEMENT_BAR:-0}" == "1":
+    d["bar"]["id"] = "wpaltest.bar"
 with open(out, "w") as f:
     json.dump(d, f, indent=2)
 PY

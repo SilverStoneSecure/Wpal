@@ -9,7 +9,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 source lib/harness.sh
 harness_load_calibration
 
-SCENARIOS=(fresh-install escape-cascade)
+SCENARIOS=(fresh-install escape-cascade replacement-bar)
 TARGET="${1:-all}"
 
 run_one() {
