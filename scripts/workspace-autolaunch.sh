@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-launch panes for one workspace, in a fixed layout keyed by pane count.
-# Invoked by Service.qml (chad.silverstone) whenever a configured workspace
+# Invoked by Service.qml (silverstone.wpal) whenever a configured workspace
 # is focused while empty. Generalizes the old omarchy-workspace-6-autolaunch
 # script: this one takes an arbitrary pane list (app/webapp/terminal/command)
 # instead of two hardcoded foot+ssh commands, and identifies new windows by

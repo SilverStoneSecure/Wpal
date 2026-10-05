@@ -16,7 +16,7 @@ import "Model.js" as Model
 // just one hop further.
 BarWidget {
   id: root
-  moduleName: "chad.silverstone"
+  moduleName: "silverstone.wpal"
 
   function pushSettings() {
     var svc = root.bar && root.bar.shell ? root.bar.shell.serviceFor(root.moduleName) : null
@@ -90,6 +90,9 @@ BarWidget {
     function open(): void { root.open() }
     function close(): void { root.close() }
     function toggle(): void { root.togglePanel() }
+    // Read-only query for the click-through test suite (tests/) -- lets a
+    // script assert open/closed state without screenshot diffing.
+    function isOpen(): bool { return root.opened }
   }
 
   BarIconButton {

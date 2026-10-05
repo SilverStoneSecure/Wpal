@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "chad.silverstone",
+  "id": "silverstone.wpal",
   "name": "Wpal",
   "version": "1.0.0",
-  "author": "chad",
+  "author": "SilverStone",
   "license": "MIT",
+  "homepage": "https://github.com/SilverStoneSecure/Wpal",
   "description": "Per-workspace Background (default/custom/random) and auto-launched pane layouts for empty workspaces.",
   "kinds": ["service", "bar-widget"],
   "entryPoints": {
