@@ -16,7 +16,7 @@ import "Model.js" as Model
 // just one hop further.
 BarWidget {
   id: root
-  moduleName: "chad.silverstone"
+  moduleName: "silverstone.wpal"
 
   function pushSettings() {
     var svc = root.bar && root.bar.shell ? root.bar.shell.serviceFor(root.moduleName) : null

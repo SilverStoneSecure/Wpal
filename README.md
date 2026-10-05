@@ -4,7 +4,7 @@ Per-workspace Background (default/custom/random) and auto-launched pane layouts 
 
 An omarchy bar plugin (`kinds`: service, bar-widget).
 
-- **id**: `chad.silverstone`
+- **id**: `silverstone.wpal`
 - **version**: 1.0.0
 - **author**: chad
 - **license**: MIT
@@ -12,4 +12,4 @@ An omarchy bar plugin (`kinds`: service, bar-widget).
 
 ## Install
 
-Copy this plugin's files into `~/.config/omarchy/plugins/chad.silverstone/`.
+Copy this plugin's files into `~/.config/omarchy/plugins/silverstone.wpal/`.

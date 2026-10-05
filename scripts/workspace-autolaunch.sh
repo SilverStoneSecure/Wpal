@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-launch panes for one workspace, in a fixed layout keyed by pane count.
-# Invoked by Service.qml (chad.silverstone) whenever a configured workspace
+# Invoked by Service.qml (silverstone.wpal) whenever a configured workspace
 # is focused while empty. Generalizes the old omarchy-workspace-6-autolaunch
 # script: this one takes an arbitrary pane list (app/webapp/terminal/command)
 # instead of two hardcoded foot+ssh commands, and identifies new windows by
@@ -139,8 +139,19 @@ webapp_profile_dir() {
 # `foot /home/chad/.../claude`, which foot refuses -- so no window ever
 # appeared, the wait timed out, and the rest of the panes were abandoned.
 # Verified on this machine with a logging .desktop file, not guessed.
-# So: with args, run the desktop entry's own Exec line and append them;
-# without args, keep the proven gtk-launch path.
+#
+# gtk-launch is also wrong for a SECOND pane of a DBusActivatable app that's
+# already running (e.g. org.gnome.Nautilus, two Files panes on one
+# workspace): it does a bare Activate() D-Bus call with no way to ask for a
+# new window, so the app just raises its existing one and the second pane's
+# window never appears. Running the desktop entry's own Exec line instead
+# (nautilus --new-window, baked into the .desktop by GNOME itself) goes
+# through GApplication's normal argv-forwarding to the running instance,
+# which DOES honor --new-window. Same fix shape as the Chromium webapp
+# singleton problem (see webapp_profile_dir above), different app family.
+# So: always run the desktop entry's own Exec line, with the pane's args (if
+# any) appended -- gtk-launch is only the fallback when no Exec could be
+# parsed at all.
 launch_app() {
   local id=$1 args=$2 file exec_line url profile_dir
   file=$(desktop_file "$id") && exec_line=$(desktop_exec "$file")
@@ -149,10 +160,6 @@ launch_app() {
     profile_dir=$(webapp_profile_dir "$id")
     mkdir -p "$profile_dir"
     setsid -f uwsm-app -- omarchy-launch-webapp "$url" --user-data-dir="$profile_dir" $args </dev/null >/dev/null
-    return
-  fi
-  if [[ -z $args ]]; then
-    setsid -f uwsm-app -- gtk-launch "${id}.desktop" </dev/null >/dev/null
     return
   fi
   if [[ -n ${exec_line:-} ]]; then
