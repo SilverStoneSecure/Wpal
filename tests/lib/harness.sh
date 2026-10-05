@@ -219,7 +219,13 @@ harness_ipc() { WAYLAND_DISPLAY="$NESTED_WAYLAND_DISPLAY" qs ipc -i "$NESTED_QS_
 
 harness_screenshot() {
   mkdir -p "$WPAL_REPO/tests/screenshots"
-  grim "$WPAL_REPO/tests/screenshots/$1.png"
+  # Scoped to the NESTED compositor's own display -- without this, grim asks
+  # the REAL session for a screenshot and gets the real output with the
+  # nested window composited on top, so whatever's behind it on the real
+  # desktop bleeds through the plugin panel's translucent background into
+  # every capture (found 2026-10-05 taking preview.png: a browser tab's
+  # bookmarks and inbox count were faintly legible in the result).
+  WAYLAND_DISPLAY="$NESTED_WAYLAND_DISPLAY" grim "$WPAL_REPO/tests/screenshots/$1.png"
 }
 
 harness_shell_json() {
