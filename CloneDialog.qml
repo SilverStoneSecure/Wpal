@@ -80,10 +80,11 @@ Item {
         Layout.fillWidth: true
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
-        // 0's wording, verbatim: Clone "WS<N>" (0: 'Title the coloer diag to
-        // "Clone "WS<N>"'). The "to another(s)" tail moved out of the title --
+        // Plain "Clone WS<N>", no quote marks -- matches the unquoted WS<N>
+        // label used everywhere else (AutoLaunchConfig, WallpaperPicker,
+        // CustomizeDialog). The "to another(s)" tail moved out of the title --
         // the caption under the separator already says it.
-        text: "Clone \"WS" + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId)) + "\""
+        text: "Clone WS" + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
         color: root.foreground
         font.family: Style.font.family
         font.pixelSize: Style.font.heading
