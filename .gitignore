@@ -1,1 +1,7 @@
 tests/screenshots/*.png
+*.qmlc
+*.jsc
+.qmlcache/
+*.swp
+*~
+.DS_Store
