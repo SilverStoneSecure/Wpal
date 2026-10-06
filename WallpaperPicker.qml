@@ -386,6 +386,11 @@ Item {
           radius: Style.cornerRadius
           color: Qt.darker(root.foreground, 3)
           clip: true
+          // Evidence, not a chooser (see the strip's own comment above) --
+          // dimmed to read as a preview-only surface, not a pickable thumbnail
+          // (0, issue #2: "merely a preview into whats in the current folder,
+          // grey them out on both panels in this mode by 50%").
+          opacity: 0.5
 
           Image {
             anchors.fill: parent
