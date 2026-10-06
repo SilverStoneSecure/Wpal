@@ -36,6 +36,47 @@ Panel {
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
+  // Every settings write funnels through here. `shell.updateEntryInline`
+  // (the only write primitive this kind of plugin gets -- `mutateShellConfig`
+  // exists but is gated on bar capabilities an ordinary widget never has, so
+  // it silently no-ops here, confirmed live) always REPLACES the stored entry
+  // wholesale with whatever object it's handed -- there is no partial-merge
+  // option. So mutatorFn edits a clone of `root.settings`, same as before.
+  //
+  // Safety net, added 2026-10-06 after this cost a real desktop its data:
+  // none of this file's write paths ever intend to remove `workspaces`
+  // outright, so a mutated `next` that ends up with no workspaces at all
+  // while some OTHER field is already set (meaning this plainly isn't a
+  // brand-new, never-configured entry) is almost certainly built from a
+  // `root.settings` snapshot that hadn't caught up to a recent restart/
+  // reload yet -- not a deliberate clear. Refuse that write instead of
+  // silently persisting the loss; the next real settings push lets the same
+  // action succeed safely. A genuinely fresh install (root.settings === {})
+  // is unaffected: `looksEstablished` is false, so the seed write through.
+  function patchEntry(mutatorFn) {
+    // Checked BEFORE mutation -- `next` below necessarily carries whatever
+    // field this very call is about to set, so checking established-ness
+    // on the mutated object would make any call that sets e.g.
+    // `globalOverride` look "established" by its own write, blocking the
+    // legitimate first-ever seed on a brand-new install.
+    var before = root.settings || {}
+    var looksEstablished = before.enabled !== undefined || before.globalOverride !== undefined
+      || before.autoLaunchEnabled !== undefined || before.startupCustom !== undefined || before.poolFolder !== undefined
+      || (Util.isPlainObject(before.workspaces) && Object.keys(before.workspaces).length > 0)
+
+    var next = Util.cloneJson(root.settings || {})
+    mutatorFn(next)
+
+    var hasWorkspaces = Util.isPlainObject(next.workspaces) && Object.keys(next.workspaces).length > 0
+    if (!hasWorkspaces && looksEstablished) {
+      console.warn("silverstone: refused a settings write that would drop all workspace data (stale snapshot?) next=" + JSON.stringify(next))
+      return false
+    }
+
+    if (root.bar && root.bar.shell) return root.bar.shell.updateEntryInline(root.moduleName, next)
+    return false
+  }
+
   // Defaults to Omarchy Default (false) the very first time this ever runs,
   // with no "enabled" key saved yet -- SilverStone Custom only turns on once
   // the user actually picks it, and after that the saved value just
@@ -496,8 +537,6 @@ Panel {
   }
 
   function updateWorkspace(id, patch) {
-    var next = Util.cloneJson(root.settings || {})
-    if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
     var cur = wsSetting(id)
     var merged = {
       background: Object.assign({}, cur.background, patch.background || {}),
@@ -506,14 +545,17 @@ Panel {
       launchLayout: patch.launchLayout !== undefined ? patch.launchLayout : cur.launchLayout,
       fullScreenIndex: patch.fullScreenIndex !== undefined ? patch.fullScreenIndex : cur.fullScreenIndex
     }
-    next.workspaces[String(id)] = merged
     // Customizing a workspace while "Omarchy Default" is active is a silent
     // trap: the edit saves fine, but neither the thumbnail nor the live
     // wallpaper can show it until SilverStone mode is on, which looks like
     // the picker/pane editor is just broken. Auto-switch modes right here,
     // in the same settings write, instead of letting someone hit that twice.
-    if (!root.masterEnabled) { console.log("silverstone: DEBUG updateWorkspace auto-enable"); next.enabled = true }
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    var autoEnable = !root.masterEnabled
+    root.patchEntry(function(entry) {
+      if (!Util.isPlainObject(entry.workspaces)) entry.workspaces = {}
+      entry.workspaces[String(id)] = merged
+      if (autoEnable) entry.enabled = true
+    })
     // The settings write above updates what previewFor()/the card thumbnail
     // show (they just read settings), but nothing else re-applies the live
     // desktop wallpaper -- that normally only happens on a focus change. If
@@ -530,21 +572,24 @@ Panel {
   // settings write -- separate updateWorkspace calls would each rebuild the
   // panel. The source is never a target.
   function cloneWorkspace(fromId, targets) {
-    var next = Util.cloneJson(root.settings || {})
-    if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
     var src = JSON.parse(JSON.stringify(root.wsSetting(fromId)))
     var done = []
+    var patches = {}
     for (var i = 0; i < targets.length; i++) {
       var t = Number(targets[i])
       if (t === fromId || t < 1 || t > 10 || done.indexOf(t) >= 0) continue
-      next.workspaces[String(t)] = JSON.parse(JSON.stringify(src))
+      patches[String(t)] = JSON.parse(JSON.stringify(src))
       done.push(t)
     }
     if (done.length === 0) return
     // Same silent-trap guard as updateWorkspace: clones can't show in Omarchy Default.
-    if (!root.masterEnabled) { console.log("silverstone: DEBUG cloneWorkspace auto-enable"); next.enabled = true }
+    var autoEnable = !root.masterEnabled
     root.cloneDialogOpen = false
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) {
+      if (!Util.isPlainObject(entry.workspaces)) entry.workspaces = {}
+      for (var key in patches) entry.workspaces[key] = patches[key]
+      if (autoEnable) entry.enabled = true
+    })
     // The settings carry the pool; this carries the actual PICTURE, so the
     // clone shows what was cloned instead of its own random pick.
     if (root.service) root.service.mirrorRandomPick(fromId, done)
@@ -565,27 +610,20 @@ Panel {
   onCloneDialogOpenChanged: if (root.service) root.service.cloneOpenIntent = root.cloneDialogOpen
 
   function setMasterEnabled(v) {
-    console.log("silverstone: DEBUG setMasterEnabled called with v=" + v)
     // Switching modes dismisses whatever picker/dialog is open (e.g. the
     // Omarchy-mode wallpaper picker) -- before the write, since the write
     // recreates this panel and would otherwise restore the stale dialog.
     root.pendingBrowse = null
     root.closeDialog()
-    var next = Util.cloneJson(root.settings || {})
-    next.enabled = v
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) { entry.enabled = v })
   }
 
   function setAutoLaunchEnabled(v) {
-    var next = Util.cloneJson(root.settings || {})
-    next.autoLaunchEnabled = v
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) { entry.autoLaunchEnabled = v })
   }
 
   function setStartupCustom(v) {
-    var next = Util.cloneJson(root.settings || {})
-    next.startupCustom = v
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) { entry.startupCustom = v })
   }
 
   // Sets every workspace to "random" against the shared source folder (or
@@ -623,12 +661,11 @@ Panel {
   }
 
   function randomizeAllWorkspaces() {
-    var next = Util.cloneJson(root.settings || {})
-    if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
+    var patches = {}
     for (var id = 1; id <= 10; id++) {
       var cur = root.wsSetting(id)
       var rawPool = root.wsPoolFolderRaw(id)
-      next.workspaces[String(id)] = {
+      patches[String(id)] = {
         // path: "", not cur.background.path -- randomizeWorkspace() (the
         // per-workspace reroll) clears it for the same reason: Service's
         // cold-boot fallback in resolveRandom() treats a non-empty path as a
@@ -646,7 +683,10 @@ Panel {
         fullScreenIndex: cur.fullScreenIndex
       }
     }
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) {
+      if (!Util.isPlainObject(entry.workspaces)) entry.workspaces = {}
+      for (var key in patches) entry.workspaces[key] = patches[key]
+    })
   }
 
   function shuffleGlobalWallpaper() {
@@ -716,14 +756,16 @@ Panel {
   // Empties every workspace's panes in ONE settings write -- ten writes would
   // rebuild the panel ten times. Auto Launch's own switches are left alone.
   function clearAllLaunchers() {
-    var next = Util.cloneJson(root.settings || {})
-    if (!Util.isPlainObject(next.workspaces)) next.workspaces = {}
+    var patches = {}
     for (var i = 1; i <= 10; i++) {
       var key = String(i)
       var cur = root.wsSetting(i)
-      next.workspaces[key] = Object.assign({}, cur, { panes: [], fullScreenIndex: -1 })
+      patches[key] = Object.assign({}, cur, { panes: [], fullScreenIndex: -1 })
     }
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) {
+      if (!Util.isPlainObject(entry.workspaces)) entry.workspaces = {}
+      for (var key in patches) entry.workspaces[key] = patches[key]
+    })
   }
 
   function shuffleWallpaper() {
@@ -785,9 +827,7 @@ Panel {
   }
 
   function setPoolFolder(path) {
-    var next = Util.cloneJson(root.settings || {})
-    next.poolFolder = path
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) { entry.poolFolder = path })
   }
 
   function previewFor(id) {
@@ -803,10 +843,7 @@ Panel {
   readonly property string globalOverride: (settings && settings.globalOverride) || ""
 
   function setGlobalOverride(path) {
-    var next = Util.cloneJson(root.settings || {})
-    console.log("silverstone: DEBUG setGlobalOverride before-write next=" + JSON.stringify(next))
-    next.globalOverride = path
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, next)
+    root.patchEntry(function(entry) { entry.globalOverride = path })
   }
 
   // One-time: if globalOverride has never been set (a brand-new install, or
