@@ -5,3 +5,4 @@ tests/screenshots/*.png
 *.swp
 *~
 .DS_Store
+.pr-drafts/
