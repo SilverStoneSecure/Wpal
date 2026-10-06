@@ -54,9 +54,8 @@ function resolveWallpaperFolder(raw, home) {
 // at a time with the "+" button and removed with a slot's "Remove Auto
 // Launcher" button (which also shifts every later slot's number down by
 // one, not always-4-fixed-slots like the previous design. No more per-slot
-// on/off (0: "there shouldn't be slots, the window opens or not") -- a slot
-// existing with data IS it being in the launch set; the only way to pause
-// one is to remove it or pause the whole workspace.
+// on/off -- a slot existing with data IS it being in the launch set; the
+// only way to pause one is to remove it or pause the whole workspace.
 //
 // Just two fields per slot, not three: `args` is dual-purpose -- when appId
 // is set it's extra launch args for that app; when appId is empty, `args`
@@ -221,9 +220,8 @@ function appLabel(apps, id) {
 
 // One pane's inline description: the app's display name if one's picked, with
 // its args after it, else the args value itself (the command/URL in that
-// case). The args are part of the label (0: "If a AL has args, show it on the
-// lie and the main preview") -- without them two panes on the same app read
-// identically on the main panel's card hover.
+// case). The args are part of the label -- without them two panes on the
+// same app read identically on the main panel's card hover.
 function paneLabel(apps, p) {
   if (!p) return "(not set)"
   var args = String(p.args || "").trim()
@@ -236,10 +234,8 @@ function paneLabel(apps, p) {
 
 // Panes with any data set -- "how many are configured" under the strictly-
 // progressive 1 / 1-2 / 1-2-3 rule. There's no separate per-slot on/off any
-// more (0: "there shouldn't be slots, the window opens or not ... if an auto
-// launch is set and auto launch is on, then it launches as normal") --
-// configured IS the launch set, so this single count drives both what's
-// shown live and what actually fires.
+// more -- configured IS the launch set, so this single count drives both
+// what's shown live and what actually fires.
 function configuredCount(panes) {
   var n = 0
   for (var i = 0; i < (panes ? panes.length : 0); i++) {

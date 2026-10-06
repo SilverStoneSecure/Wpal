@@ -6,16 +6,13 @@ import qs.Ui
 import "Model.js" as Model
 
 // One launcher's editor, as its own panel beside li rather than a popup over
-// li's preview (0: "when a + button is presses, it makes a new panel, similar
-// to the picker panel, to the right of its parent. I said diag box, but its a
-// new panel with a title, textboxes and a clear, save delete").
+// li's preview.
 //
 // Titled in the shared panel format -- double-sized SilverStone mark, then
 // "WS<N> Auto Launcher Config <slot>" -- the same shape the main panel and li
 // use. Everything types straight through to settings (updateFn), so Save is
-// just a close, like li's own (0: "save is basically just x cascades changes
-// down"). Delete splices the slot out; li renumbers what's left, so a later
-// launcher never sits without an earlier one.
+// just a close, like li's own. Delete splices the slot out; li renumbers
+// what's left, so a later launcher never sits without an earlier one.
 Item {
   id: root
   property string moduleName: "io.github.silverstone.wpal"
@@ -30,25 +27,20 @@ Item {
   signal appChanged(string appId)
   signal argsChanged(string args)
   // Clear is a LOCAL edit: it empties the two boxes here and nothing cascades
-  // to the previews until Save (0: "on clear on the AL edit, dont cascade
-  // previews until save"). clearedDraft tracks that pending emptiness.
+  // to the previews until Save. clearedDraft tracks that pending emptiness.
   property bool clearedDraft: false
   signal cleared()
   signal deleted()
   // Save, Enter and Escape all leave the same way: commit the field, then let
-  // Panel close the panel -- and drop the slot entirely if nothing was set
-  // (0: "if theres nothong set then the panes are minus oned and it neeeds to
-  // be re added thru the plus button").
+  // Panel close the panel -- and drop the slot entirely if nothing was set.
   // Carries what was just typed. The host must NOT read the saved settings
   // to decide whether this slot is empty -- the write below lands
   // asynchronously, so a read-back there sees the pane as it was before and
-  // deletes the launcher that was just written (0: "the AL save button does
-  // nothing").
+  // deletes the launcher that was just written.
   signal saveRequested(string appId, string args)
   signal closeRequested()
 
-  // Enter anywhere in this panel is Save (0: "enter acts like save when
-  // focised on that dialogue").
+  // Enter anywhere in this panel is Save.
   Keys.onReturnPressed: root.commitAndSave()
   Keys.onEnterPressed: root.commitAndSave()
 
@@ -61,8 +53,7 @@ Item {
   }
 
   // Commit one app from the picker -- the single path shared by a mouse click
-  // and by Enter on the keyboard-driven search (0: "make arrows and tabbing
-  // work in the fuzzy search").
+  // and by Enter on the keyboard-driven search.
   function selectApp(app) {
     if (!app) return
     root.clearedDraft = false
@@ -70,9 +61,7 @@ Item {
     root.appChanged(app.value)
     root.appListOpen = false
     searchField.text = ""
-    // Hand focus straight to args so the very next Enter saves and closes
-    // (0: "focus is set on args, enter again closes the diag saves are
-    // cascaded").
+    // Hand focus straight to args so the very next Enter saves and closes.
     argsField.forceActiveFocus()
   }
 
@@ -84,10 +73,9 @@ Item {
   // Typing into a TextField replaces its `text` binding outright, so the
   // moment a command has been typed the box stops tracking `pane.args`: open
   // another slot and the editor still shows the last thing typed rather than
-  // that slot's own command (0: "im clicking on ws4 al2 for an edit and the
-  // command already assigned is not cx ... being shot over to the edit
-  // dialouge"). Reloading it by hand on every pane AND slot change is the fix;
-  // the declarative `text:` below only ever covers the first open.
+  // that slot's own command. Reloading it by hand on every pane AND slot
+  // change is the fix; the declarative `text:` below only ever covers the
+  // first open.
   function loadPane() {
     root.clearedDraft = false
     root.appListOpen = false
@@ -129,8 +117,8 @@ Item {
 
   Column {
     id: column
-    // Same width as li, the cloner and the picker (0: "make them the same
-    // width"). 340 is li's own column width.
+    // Same width as li, the cloner and the picker. 340 is li's own column
+    // width.
     width: Style.space(340)
     spacing: Style.spacing.md
 
@@ -152,8 +140,7 @@ Item {
         Layout.fillWidth: true
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
-        // Two lines: the workspace, then what's being edited (0: "line
-        // return ... between WS1 And AutoLaunch").
+        // Two lines: the workspace, then what's being edited.
         text: "WS" + root.wsLabel + "\nAuto Launch " + (root.slotIndex + 1)
         color: root.foreground
         font.family: Style.font.family
@@ -168,8 +155,8 @@ Item {
     // carry a command or a webapp URL (see Model.classifyPane).
     // App selector, in the shape of Omarchy's own apps menu: click it and a
     // searchable list of every installed app drops open; clicking a result IS
-    // the selection (0's 4a -- the real menu plugin can't hand a pick back,
-    // see the note in memory about doing it properly one day).
+    // the selection. Reimplemented here rather than reusing the system
+    // app-menu plugin, which has no way to hand a selection back to a caller.
     Column {
       width: column.width
       spacing: Style.spacing.sm
@@ -212,8 +199,7 @@ Item {
         width: column.width
         placeholderText: "Search apps"
         // Retyping refilters and drops the highlight back to the top hit, so
-        // Enter takes the best match unless you arrow/Tab away first (0: "make
-        // arrows and tabbing work in the fuzzy search").
+        // Enter takes the best match unless you arrow/Tab away first.
         onTextChanged: { root.appFilter = text; appList.currentIndex = 0 }
         // Up/Down and Tab/Shift-Tab walk the results without leaving the box;
         // Enter picks the highlighted one. When the list is empty Enter falls
@@ -296,7 +282,7 @@ Item {
       width: column.width
       text: root.pane ? root.pane.args : ""
       // With an app picked this box is that app's arguments, so it just says
-      // "args" (0); with none picked it's the command/URL itself.
+      // "args"; with none picked it's the command/URL itself.
       placeholderText: (root.pane && root.pane.appId !== "")
         ? "args"
         : "Command, webapp URL, or blank for a plain terminal"
@@ -310,7 +296,7 @@ Item {
       spacing: Style.spacing.controlGap
 
       // Delete sits apart on the left; the two safe actions pair up on the
-      // right, Save last (0: "arrange the Clear Save Delete buttons better").
+      // right, Save last.
       Button {
         id: deleteButton
         text: "Delete"
@@ -318,8 +304,8 @@ Item {
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
         // The longest hover text in the plugin, and this panel is narrow: it
-        // wraps instead of running off the frame (0: "word wrap ALL mouseovers
-        // if they bust the panel"). The built-in one-line tooltip is off.
+        // wraps instead of running off the frame. The built-in one-line
+        // tooltip is off.
         property bool tipOn: false
         onHovered: function(isHovered) { deleteButton.tipOn = isHovered }
         SsToolTip {
@@ -338,8 +324,7 @@ Item {
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
         // SsToolTip, not the built-in tooltipText, so this one is clamped
-        // inside its own panel like every other hover (0: "CONSTRAIN ALL
-        // HOVERS TO THIER RESPECTIVE PANEL").
+        // inside its own panel like every other hover.
         SsToolTip { visible: clearDraftButton.hot; text: "Empty both boxes" }
         onClicked: { root.clearedDraft = true; argsField.text = "" }
       }

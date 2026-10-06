@@ -6,8 +6,7 @@ import qs.Commons
 import qs.Ui
 
 // The wallpaper picker: a contact sheet of thumbnails (file mode) or a
-// folder ladder (pool mode), redrawn from scratch for Omarchy parity (0:
-// "I want to rework the wallpaper picker, its kind of ugly").
+// folder ladder (pool mode), redrawn from scratch for Omarchy parity.
 //
 // Titled like its parent panels -- double-sized SilverStone mark, then the
 // title, on a row of its own. That row used to end in a ✕; all the ✕s were
@@ -28,8 +27,7 @@ Item {
 
   // ONE constant height for the browsing area, in every mode and every
   // folder. Content-driven sizing was the mistake: it killed the dead space
-  // but made the picker resize as you moved around (0: "the picker itself is
-  // thrashing around ... make a picker that doesnt trash the height around").
+  // but made the picker resize as you moved around.
   // Whatever is showing -- the browse list, or the thumbnail strip when there
   // is nothing to browse into -- fills exactly this, so the frame never moves.
   // Folder mode overrides it with a two-cell box; see sheetBox.
@@ -37,9 +35,9 @@ Item {
   property var nameFilters: []
   property color foreground: Color.foreground
   property string currentPath: ""
-  // Whose wallpaper is being picked, for the title (0: "a Wapp Paper Title
-  // WS<N> WallPaper"). 0 when the pick isn't tied to one workspace -- the
-  // global pool browse and Omarchy Default's single picker.
+  // Whose wallpaper is being picked, for the title. 0 when the pick isn't
+  // tied to one workspace -- the global pool browse and Omarchy Default's
+  // single picker.
   property int workspaceId: 0
   // Whether THIS workspace has its own raw pool override (as opposed to
   // following the global pool) -- gates "Use Global Pool" below so it isn't
@@ -49,13 +47,12 @@ Item {
   signal chosen(string path)
   // File mode's "Use this folder": the picture is chosen by clicking it, so
   // this hands the FOLDER back separately -- Panel makes it that workspace's
-  // pool (0: mimic GWP's buttons "into the WS wallpaper").
+  // pool.
   signal folderChosen(string path)
   signal cancelled()
-  // Two different resets moved in here from li's own settings row (0: "move
-  // the Global Button out of LIE and into the picker... add a revert to
-  // default button to the picker"): this workspace's own pool override back
-  // to following whatever the global pool currently is, or the GLOBAL pool
+  // Two different resets moved in here from li's own settings row: this
+  // workspace's own pool override back to following whatever the global pool
+  // currently is, or the GLOBAL pool
   // itself back to the omarchy theme folder. Panel.qml wires these to
   // clearWsPool()/setPoolFolder("") -- same actions, just triggered from
   // where the decision is actually being made now.
@@ -72,9 +69,8 @@ Item {
   onFolderChanged: { root.hoverPath = ""; root.sheetHover = ""; root.selectedIndex = -1 }
   readonly property string shownPath: root.hoverPath !== "" ? root.hoverPath : root.currentPath
 
-  // Keyboard cursor into whichever grid/list is actually showing (0: "allow
-  // in the fuzzy picker that a user can use the arrow buttons, and enter to
-  // select"). -1 = nothing highlighted yet -- the first arrow press just
+  // Keyboard cursor into whichever grid/list is actually showing. -1 =
+  // nothing highlighted yet -- the first arrow press just
   // lands on index 0 rather than moving from it. Panel.qml's pickerFrame
   // owns the real Keys handlers (same place Escape is already wired) and
   // calls moveSelection()/activateSelection() below; there was no keyboard
@@ -115,8 +111,8 @@ Item {
   implicitWidth: column.width
   implicitHeight: column.implicitHeight
 
-  // "/home/chad/Pictures" -> [{label: "/home", path: "/home"},
-  //                            {label: "/chad", path: "/home/chad"}, ...].
+  // "/home/user/Pictures" -> [{label: "/home", path: "/home"},
+  //                            {label: "/user", path: "/home/user"}, ...].
   // Rebuilt whenever the folder changes; each entry keeps the full path it
   // stands for, so a click is just an assignment to root.folder.
   readonly property var crumbs: {
@@ -137,8 +133,7 @@ Item {
   }
 
   // Folders only. The ladder runs off this in BOTH modes, which is what gives
-  // the image picker a way DOWN the tree -- it had the ↑ and nothing else
-  // (0: "on the picker itself, its broken, it can only go up").
+  // the image picker a way DOWN the tree -- it had the ↑ and nothing else.
   FolderListModel {
     id: dirModel
     folder: Util.fileUrl(root.folder)
@@ -175,11 +170,10 @@ Item {
 
   Column {
     id: column
-    // Just inside li's 340 (0: "narrow it to just thinner than its parent").
+    // Just inside li's 340.
     width: Style.space(320)
     // Tighter than md: the old gap left the thumbnail strip floating away
-    // from the path line above it (0: "the slider should be right up to the
-    // text", "lose the dead space").
+    // from the path line above it.
     spacing: Style.spacing.sm
 
     // ---- title row, in the shared panel format ---------------------------
@@ -199,15 +193,12 @@ Item {
       Text {
         Layout.fillWidth: true
         textFormat: Text.PlainText
-        // Folder mode is the pool picker, titled as 0 named it; file mode is
-        // the wallpaper picker for whichever workspace opened it.
         // Folder mode is a POOL picker -- but it can be the global pool or one
         // workspace's own, and it used to hardcode "Global WallPaper Pool" for
         // both. li's "..." therefore announced itself as global while editing
-        // a single workspace (0: "the ... on the LI Editor opens up global").
-        // A workspace's own pool is its CUSTOM pool, said in full so it can't
-        // be read as the global one (0: "WS<N> Custom WallPaper Pool"). The
-        // image picker's title is deliberately left alone.
+        // a single workspace. A workspace's own pool is its CUSTOM pool, said
+        // in full so it can't be read as the global one. The image picker's
+        // title is deliberately left alone.
         text: root.workspaceId > 0
           ? ("WS" + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
              + (root.pickFiles ? " Background" : " Custom Background Pool"))
@@ -227,12 +218,11 @@ Item {
       spacing: Style.spacing.controlGap
 
       // Bigger than the other action buttons and breathing while it sits
-      // idle: it is the way back up the tree and 0 was hunting for it every
-      // time ("takes me a moment every time"). The GLYPH itself holds still
-      // now (0: "stop the pixel throbbing") -- an accent glow behind it swells
-      // and fades instead, which reads at a glance without anything moving.
-      // Hover kills it stone dead: from then on the button does its job and
-      // nothing else (0: "do nithing when hovers except your job").
+      // idle: it is the primary way back up the tree, sized and animated to
+      // stay easy to find. The glyph itself holds still -- an accent glow
+      // behind it swells and fades instead, which reads at a glance without
+      // anything moving. Hover kills the animation stone dead: from then on
+      // the button just does its job and nothing else.
       Item {
         Layout.alignment: Qt.AlignVCenter
         implicitWidth: upButton.implicitWidth
@@ -271,8 +261,8 @@ Item {
 
       // Every folder on the way here is a button now. Walking to another
       // pool meant pressing ↑ once per level and reading a truncated line to
-      // know where you were (0: "the WP pool picker si still unusable") --
-      // one press on any crumb jumps straight there. The row scrolls itself
+      // know where you were -- one press on any crumb jumps straight there.
+      // The row scrolls itself
       // to the tail, so the folder you are IN is always the one on screen.
       Item {
         Layout.fillWidth: true
@@ -312,20 +302,18 @@ Item {
     // ---- the strip preview, both pool pickers -----------------------------
     //
     // A single row of what is actually IN the folder you are standing in, so
-    // the pool you are about to take is not a guess (0: "put the stip preview
-    // back into both pool pickers"). Global pool and per-workspace pool are
-    // the same component in pool mode, so one strip serves both.
+    // the pool you are about to take is not a guess. Global pool and
+    // per-workspace pool are the same component in pool mode, so one strip
+    // serves both.
     //
-    // INERT. Nothing here takes a click (0: "preview click does nothing") --
-    // the pictures are evidence, not controls; the ladder moves you and "Use
-    // this Folder" takes the folder. The list itself does not drag-scroll
-    // either: the two arrows page it, one screenful at a time.
+    // INERT. Nothing here takes a click -- the pictures are evidence, not
+    // controls; the ladder moves you and "Use this Folder" takes the folder.
+    // The list itself does not drag-scroll either: the two arrows page it,
+    // one screenful at a time.
     //
-    // ALWAYS visible in pool mode now, empty folder or not (0: "the custom
-    // pool picker thrashes when theres no images in a folder... open the
-    // diag large enough for the slide to have space when no images are
-    // there. and not thrash"). This used to collapse to zero height on an
-    // empty folder -- same class of bug the ladder below was already fixed
+    // ALWAYS visible in pool mode now, empty folder or not. This used to
+    // collapse to zero height on an empty folder -- same class of bug the
+    // ladder below was already fixed
     // for ("FOUR rows, always"). Since the dialog's own height is
     // content-driven off this column, reserving the strip's space here is
     // the whole fix; nothing in Panel.qml needs to change.
@@ -387,9 +375,8 @@ Item {
           color: Qt.darker(root.foreground, 3)
           clip: true
           // Evidence, not a chooser (see the strip's own comment above) --
-          // dimmed to read as a preview-only surface, not a pickable thumbnail
-          // (0, issue #2: "merely a preview into whats in the current folder,
-          // grey them out on both panels in this mode by 50%").
+          // dimmed to read as a preview-only surface, not a pickable
+          // thumbnail.
           opacity: 0.5
 
           Image {
@@ -418,10 +405,9 @@ Item {
     // hover bar. No tiles, no chips, no boxes: the tiles read as blanks and
     // the chips still boxed every name in its own frame.
     //
-    // FOUR rows, always. That is the whole point of it (0: "another style
-    // picker that doesnt thrash"): a folder with two subfolders and a folder
-    // with forty are exactly the same height, and the rest run under the
-    // wheel against the slim bar on the right.
+    // FOUR rows, always. That is the whole point of it: a folder with two
+    // subfolders and a folder with forty are exactly the same height, and the
+    // rest run under the wheel against the slim bar on the right.
     Item {
       id: poolLadder
       // Both modes: the pool takes a folder with it, the image picker walks
@@ -430,8 +416,7 @@ Item {
       // the theme's own backgrounds directory is one: seven pictures, no
       // subfolders -- made the ladder vanish, and with the pool picker having
       // no preview by design the panel came up as a title, a path and some
-      // buttons (0: "the custom pool background it blasted"). It keeps its
-      // four rows and says it is empty instead.
+      // buttons. It keeps its four rows and says it is empty instead.
       width: column.width
       readonly property real rowH: Style.space(26)
       height: rowH * 4
@@ -521,9 +506,8 @@ Item {
     // ---- the contact sheet: every image as a thumbnail --------------------
     // Three across; folders are
     // slim full-width rows above them. Pick by clicking the picture itself.
-    // Height follows the CONTENT now, not a fixed 260 (0: "compress the
-    // wallpaper picker up to the amount of images ... it kills dead space").
-    // Three across, so nine images is three rows: up to that it shrink-wraps
+    // Height follows the CONTENT now, not a fixed 260. Three across, so nine
+    // images is three rows: up to that it shrink-wraps
     // exactly, beyond it it grows to the cap -- "show them until the pane
     // bottom" -- and the arrows below page through the rest.
     Item {
@@ -532,10 +516,9 @@ Item {
       // folder full of pictures is not a pool picker.
       //
       // NOT gated on imageModel.count any more -- same class of bug as
-      // stripRow and poolLadder above, just missed in both of those passes
-      // (0: "the BG Picker for a LIE is thrashing... I dont want to chase
-      // buttons around the screen"). Collapsing this ~200px block on every
-      // image-less folder (common while navigating down toward a picture)
+      // stripRow and poolLadder above, just missed in both of those passes.
+      // Collapsing this ~200px block on every image-less folder (common while
+      // navigating down toward a picture)
       // resized the whole dialog and everything below it, including the
       // button row. Keeps its reserved height and says it's empty instead.
       visible: root.pickFiles
@@ -633,8 +616,7 @@ Item {
     }
 
       // The hovered file's name, spanning the whole panel and wrapping when
-      // it needs to (0: "allow the text to span the panel, then wrap it if
-      // needed. AGAIN"). Clipped inside its own 100px thumbnail it was three
+      // it needs to. Clipped inside its own 100px thumbnail it was three
       // elided characters; here it has the full width and up to three lines.
       Rectangle {
         anchors.left: parent.left
@@ -663,7 +645,7 @@ Item {
       }
 
       // Slim scrollbar, so a folder with more images than fit stays inside
-      // the panel instead of running past it (0).
+      // the panel instead of running past it.
       Rectangle {
         anchors.right: parent.right
         width: Style.space(4)
@@ -677,14 +659,14 @@ Item {
       }
     }
 
-    // Arrows page the sheet when the folder holds more than fits (0: "if
-    // theres lots, use the arrows for nav thru the folder"). Hidden entirely
-    // when everything is already on screen, so they add no dead space of
-    // their own. Centred, and inside column.width -- they never widen it.
+    // Arrows page the sheet when the folder holds more than fits. Hidden
+    // entirely when everything is already on screen, so they add no dead
+    // space of their own. Centred, and inside column.width -- they never
+    // widen it.
     RowLayout {
       // File mode only. The pool's stack is strip -> picker -> buttons and
-      // nothing else (0: "thats it then the button"), so its two lines scroll
-      // on the wheel against the slim scrollbar instead of costing a row.
+      // nothing else, so its two lines scroll on the wheel against the slim
+      // scrollbar instead of costing a row.
       visible: root.pickFiles && sheet.contentHeight > sheet.height
       width: column.width
       spacing: Style.spacing.xs
@@ -711,8 +693,7 @@ Item {
 
     // ---- the button row, both modes ---------------------------------------
     //
-    // Was ONE button, centred (0: "remove all buttons, leave the Use this
-    // folder centered, omarchy style") -- Escape and a click outside already
+    // Was ONE button, centred -- Escape and a click outside already
     // close this, and the ladder is how you get anywhere else. Two reset
     // buttons joined it later, each visible only in the ONE context it means
     // something in (see their own comments below); in file mode (picking a
@@ -736,11 +717,9 @@ Item {
         spacing: Style.spacing.controlGap
 
         // This workspace's own pool override, back to following the global
-        // pool -- moved here from li's settings row, where it read "Global"
-        // (0: "move the Global Button out of LIE and into the picker, reads
-        // 'Use Global Pool' even with the use this folder"). Per-workspace
-        // pool browse only -- meaningless during the global browse itself or
-        // a single-image pick.
+        // pool -- moved here from li's settings row, where it read "Global".
+        // Per-workspace pool browse only -- meaningless during the global
+        // browse itself or a single-image pick.
         Button {
           anchors.verticalCenter: parent.verticalCenter
           visible: !root.pickFiles && root.workspaceId > 0 && root.poolOverridden
@@ -751,12 +730,11 @@ Item {
           onClicked: root.poolResetRequested()
         }
 
-        // The GLOBAL pool itself, back to the omarchy theme folder (0: "add
-        // a revert to default button to the picker, it sets the omarchy
-        // theme folder as global default"). Global pool browse only -- 0
-        // tried it alongside "Use Global Pool" on a per-workspace browse too
-        // and bounced it right back ("bring that one back, I dont want three
-        // buttons" -- "that one" = Use Global Pool, i.e. drop back to two).
+        // The GLOBAL pool itself, back to the omarchy theme folder. Global
+        // pool browse only -- showing "Use Global Pool" alongside this on a
+        // per-workspace browse too was tried and reverted: three buttons was
+        // one too many, so each context shows only the button that applies
+        // to it.
         Button {
           anchors.verticalCenter: parent.verticalCenter
           visible: !root.pickFiles && root.workspaceId === 0

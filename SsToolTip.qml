@@ -2,10 +2,8 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// A PanelToolTip that WRAPS instead of running off the side of the panel
-// (0: "word wrap ALL mouseovers if they bust the panel"), and that stays
-// INSIDE the panel it belongs to (0: "CONSTRAIN ALL HOVERS TO THIER
-// RESPECTIVE PANEL").
+// A PanelToolTip that wraps instead of running off the side of the panel,
+// and that stays inside the panel it belongs to.
 //
 // A tooltip is a popup living inside a layer surface, and the shell's
 // PanelToolTip draws its text on one unbroken line: anything longer than the
@@ -29,14 +27,12 @@ PanelToolTip {
   // tooltip declared outside any frame (the bar widget) simply isn't clamped.
   // Resolved once, on completion: the parent chain never changes afterwards.
   property Item clampTo: null
-  // STOCK PLACEMENT: centred above the control, the way every tooltip in the
-  // shell sits (0: "im not liking the place ment of all the hovers, its
-  // annoying, go back to default hover placement"). The below-by-default
-  // experiment -- an attempt at "dont cover the label above" -- moved every
-  // box in the plugin and 0 liked that less than the thing it fixed. Nothing
-  // repositions a tooltip any more EXCEPT the panel clamp below, which only
-  // acts when the box would otherwise be drawn outside its own panel
-  // (0: "CONSTRAIN ALL HOVERS TO THIER RESPECTIVE PANEL").
+  // Stock placement: centred above the control, the way every tooltip in the
+  // shell sits. A below-by-default experiment (trying to avoid covering the
+  // label above) moved every box in the plugin and was reverted as worse than
+  // the problem it was meant to fix. Nothing repositions a tooltip any more
+  // except the panel clamp below, which only acts when the box would
+  // otherwise be drawn outside its own panel.
   property bool below: false
   // Breathing room at the frame's inner edge, and between box and control.
   readonly property real clampEdge: Style.space(2)

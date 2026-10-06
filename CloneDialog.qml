@@ -5,10 +5,9 @@ import qs.Commons
 import qs.Ui
 
 // "Clone this Workspace to Another(s)" -- its own small panel now, opened
-// beside the SilverStone-arrow button at the bottom of li (0: "bring up that
-// dialouge as we did before, make it close to the button that launched it").
-// It used to swap itself in over li's whole card, which put it nowhere near
-// the control that opened it.
+// beside the SilverStone-arrow button at the bottom of li, close to the
+// control that launched it. It used to swap itself in over li's whole card,
+// which put it nowhere near the control that opened it.
 Item {
   id: root
   property string moduleName: "io.github.silverstone.wpal"
@@ -24,8 +23,7 @@ Item {
 
   function reset() { field.text = "" }
   // The panel takes the keyboard as it opens, so typing lands in the box
-  // instead of on the strip behind it (0: "hit enter, but it just felt like
-  // escape").
+  // instead of on the strip behind it.
   function focusField() { field.forceActiveFocus() }
   function commit() { if (root.canClone) root.cloneRequested(root.parsed.ids) }
   function setText(t) { field.text = t }
@@ -105,9 +103,9 @@ Item {
       font.pixelSize: Style.font.caption
     }
 
-    // Tab walks field -> Cancel -> Clone and back (0: "allow tabbing"). The
-    // field takes the focus when the panel opens, so typing works immediately
-    // and the first Tab lands somewhere predictable.
+    // Tab walks field -> Cancel -> Clone and back. The field takes the focus
+    // when the panel opens, so typing works immediately and the first Tab
+    // lands somewhere predictable.
     TextField {
       id: field
       width: column.width
@@ -118,17 +116,16 @@ Item {
       onAccepted: if (root.canClone) root.cloneRequested(root.parsed.ids)
     }
 
-    // No notes under the textbox (0: "no note below the textbox, thats your
-    // logic to figure out") -- the parsing rules still hold, they're just not
-    // narrated: bad or self-referencing input simply leaves Clone disabled.
+    // No notes under the textbox -- the parsing rules still hold, they're
+    // just not narrated: bad or self-referencing input simply leaves Clone
+    // disabled.
 
     RowLayout {
       width: column.width
       spacing: Style.spacing.controlGap
 
-      // Cancel is gone (0: "delete the cancel from the clone diag, we will
-      // let esc handle that") -- same call as li's Save and the picker's
-      // buttons. Escape and a click outside both close this.
+      // Cancel is gone -- same call as li's Save and the picker's buttons.
+      // Escape and a click outside both close this.
       Item { Layout.fillWidth: true }
       Button {
         enabled: root.canClone

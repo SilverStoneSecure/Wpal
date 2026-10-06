@@ -19,9 +19,7 @@
 #            original arrangement). Keep in step with Model.js launchLayouts.
 #       $4 = which pane (0-based, in the same order as $2) opens FULL SCREEN
 #            once everything is tiled; -1 or absent for none. The others stay
-#            in their own tiles behind it (0: "they will open in thier
-#            assigned tile slot, or full screen for one, with the others open
-#            behind").
+#            in their own tiles behind it.
 set -u
 
 ws="${1:-}"
@@ -34,11 +32,10 @@ fs_index="${4:--1}"
 
 # How long to wait for ONE pane's window to map, in 0.1s ticks. This was 50
 # (5s), which is simply not enough on a T420: chromium, OBS and vlc all took
-# longer, the wait timed out, and -- because a timeout used to abort the whole
-# run -- every pane after the slow one never launched at all (0: "theyre
-# opening on top of each other or not at all"). A timeout no longer aborts
-# anything (see the plan loop below), so a generous budget costs nothing but
-# patience on a genuinely broken launcher.
+# longer, the wait timed out, and -- because a timeout used to abort the
+# whole run -- every pane after the slow one never launched at all. A timeout
+# no longer aborts anything (see the plan loop below), so a generous budget
+# costs nothing but patience on a genuinely broken launcher.
 wait_ticks="${WPAL_WAIT_TICKS:-200}"
 [[ $wait_ticks =~ ^[0-9]+$ ]] || wait_ticks=200
 
@@ -120,15 +117,14 @@ webapp_url_for() {
 # chromium (e.g. the real browser pane on WS1) gets forwarded to it instead of
 # opening its own app-mode window, which is slow/unreliable once that session
 # has a lot of tabs/extensions loaded -- this is what "the webapp opens in
-# Chrome instead" turned out to be (0, WS0/WS10 SilverStone Camera, verified
-# by testing: forwarded opens eventually land as a real app window, but only
-# after the main session's singleton gets around to it). A dedicated
+# Chrome instead" turned out to be (confirmed by testing: a forwarded open
+# eventually lands as a real app window, but only after the main session's
+# singleton gets around to it). A dedicated
 # `--user-data-dir` per (app, workspace) sidesteps the singleton entirely --
 # always its own process, always its own window -- and keys it by workspace
 # so the same webapp configured on two different workspaces gets two
 # independent instances, while relaunching it on the SAME workspace reuses
-# the same one (0: "a different instance of the same program on any WS, or
-# the same"). Each webapp .desktop also carries its own non-workspace-keyed
+# the same one. Each webapp .desktop also carries its own non-workspace-keyed
 # `--user-data-dir` as a baseline, so a manual launch from the app menu
 # (outside this script) gets the same isolation; the one built here, keyed by
 # workspace, simply overrides it (Chromium takes the last `--user-data-dir`).
@@ -139,11 +135,11 @@ webapp_profile_dir() {
   printf '%s/.local/share/omarchy-webapps/%s-ws%s' "$HOME" "$slug" "$ws"
 }
 
-# An app pane's args are SHELL ARGS for the app ("claude", "ssh T420",
+# An app pane's args are SHELL ARGS for the app ("claude", "ssh myhost",
 # "--incognito"), and `gtk-launch app.desktop <args>` cannot deliver them:
 # GLib treats every trailing word as a FILE, resolves it against the cwd and
 # launches the app once per word. `foot` + `claude` came out as
-# `foot /home/chad/.../claude`, which foot refuses -- so no window ever
+# `foot /home/user/.../claude`, which foot refuses -- so no window ever
 # appeared, the wait timed out, and the rest of the panes were abandoned.
 # Verified on this machine with a logging .desktop file, not guessed.
 #
@@ -276,8 +272,7 @@ for step in "${plan[@]}"; do
     addrs[$idx]=$(spawn "${addrs[$anchor]}" "$dir" "$idx") || addrs[$idx]=""
   else
     # Its anchor never showed up. Open it anyway, wherever dwindle puts it:
-    # a pane that exists in the wrong tile beats a pane that never launched
-    # (0: "... or not at all").
+    # a pane that exists in the wrong tile beats a pane that never launched.
     before=$(snapshot)
     launch_pane "$idx"
     addrs[$idx]=$(wait_new "$before") || addrs[$idx]=""

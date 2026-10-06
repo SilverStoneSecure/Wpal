@@ -37,15 +37,13 @@ Item {
   // Mirrors the li dialog's full-screen pick for this workspace; -1 = none
   // designated.
   property int launchFsIndex: -1
-  // This workspace's configured panes, for the per-launcher hover (0: "on
-  // hover, for each launcher set, show its installed launcher or command,
-  // and in the main panel too" -- same per-cell behavior as li, not a
-  // combined list).
+  // This workspace's configured panes, for the per-launcher hover: each
+  // hover shows that launcher's own installed app or command, matching li's
+  // per-cell behavior rather than a combined list.
   property var panes: []
   // The frame the per-tile hovers must stay inside: a left-column card's
-  // tooltip is centred on the tile by default, which hangs it off the left edge
-  // of the panel (0: "constrain the hovers in left column line items, keep em
-  // on the panel"). Panel passes its own card frame.
+  // tooltip is centred on the tile by default, which hangs it off the left
+  // edge of the panel. Panel passes its own card frame.
   property Item clampTarget: null
 
   readonly property var appEntries: (DesktopEntries.applications && DesktopEntries.applications.values) || []
@@ -95,8 +93,8 @@ Item {
   signal clicked()
 
   // One hover source for the whole card. The per-tile MouseAreas sit above
-  // the card's own MouseArea and were swallowing its hover, so cards WITH
-  // tiles never popped (0: "they all dont work").
+  // the card's own MouseArea and were swallowing its hover, so cards with
+  // tiles never popped.
   HoverHandler { id: cardHover }
   readonly property bool hovered: cardHover.hovered
 
@@ -114,22 +112,19 @@ Item {
   Row {
     anchors.verticalCenter: parent.verticalCenter
     anchors.horizontalCenter: parent.horizontalCenter
-    // Hovering pops the card straight out at the viewer rather than sliding it
-    // sideways (0: "the panels are shifting LEFT on hover, I want them to pop
-    // out straight twords the user, inc the pop x2") -- a centred scale, at
-    // twice the old 5px worth of growth. The per-tile hover regions scale with
-    // it, so the tile tooltips keep working.
+    // Hovering pops the card straight out at the viewer rather than sliding
+    // it sideways -- a centred scale, at twice the old 5px worth of growth.
+    // The per-tile hover regions scale with it, so the tile tooltips keep
+    // working.
     scale: root.highlighted ? 1 + (Style.space(10) / Math.max(1, root.cardW)) : 1
     transformOrigin: Item.Center
     Behavior on scale { NumberAnimation { duration: 90 } }
     spacing: root.spacing
 
     // The workspace number used to sit here, in its own gutter column to the
-    // left of the thumbnail. It is not gone -- it is drawn as a watermark over
-    // the preview itself now (0: "the LI numbers in the main panel will
-    // watermark a diff tc OVER the ws preview, all underlying functionality
-    // will remain intact"). `numberW` is deliberately still subtracted in the
-    // width maths above, so no card changes size by this move.
+    // left of the thumbnail. It is not gone -- it is drawn as a watermark
+    // over the preview itself now. `numberW` is deliberately still subtracted
+    // in the width maths above, so no card changes size by this move.
 
     Rectangle {
       width: root.cardW
@@ -148,22 +143,21 @@ Item {
       // per-tile command hovers pass straight through it.
       Text {
         z: 1
-        // EVERY card carries its number (0: "YOU LOST THE LIST ITEM NUMBERS").
-        // I had gated this on a launcher being configured, reading an answer
-        // about the number's COLOUR as being about the number itself -- that
-        // wiped the numbers off most of the list. The colour still says
-        // whether auto launch is live; the number is always there.
+        // Every card carries its number. An earlier version gated this on a
+        // launcher being configured -- a misreading of feedback about the
+        // number's colour as being about the number itself -- which wiped the
+        // numbers off most of the list. The colour still says whether auto
+        // launch is live; the number is always there.
         visible: root.showNumber
         anchors.centerIn: parent
         textFormat: Text.PlainText
         text: root.workspaceId === 10 ? "0" : String(root.workspaceId)
-        // The number says whether this workspace will auto launch (0, this
-        // pass: "when auto launch is ON, make them a light tc, contrast up 20%
-        // for visibility. When G AL is OR WS AL is off, make the number color
-        // red, inc contrast 20% as well" -- superseding the earlier
-        // red-when-ON/grey-when-OFF scheme, which read backwards). `launchEnabled`
-        // is `Panel.launchEnabledFor`, already Global AND this workspace's own
-        // switch together, so no separate G/WS check is needed here.
+        // The number says whether this workspace will auto launch: light when
+        // live, red when auto launch is off (globally or for this workspace)
+        // -- superseding an earlier red-when-ON/grey-when-OFF scheme, which
+        // read backwards. `launchEnabled` is `Panel.launchEnabledFor`, already
+        // Global AND this workspace's own switch together, so no separate
+        // G/WS check is needed here.
         readonly property color wmColor: root.launchEnabled ? root.foreground : "#e08a8a"
         // 0.39 baseline, +20% contrast = ~0.47, same bump for both states.
         color: Qt.rgba(wmColor.r, wmColor.g, wmColor.b, 0.47)
@@ -187,8 +181,7 @@ Item {
         // writes would rebuild the whole panel ten times), so the cascade is
         // done visually: each card blanks and fades its new image back in a
         // beat later than the one above, spreading the change across about
-        // two seconds (0: "have each one pop in / change over two seconds, so
-        // the user can see them change, all changing at once is odd to me").
+        // two seconds.
         onSourceChanged: if (root.staggerMs > 0) { thumb.opacity = 0; popIn.restart() }
 
         SequentialAnimation {
@@ -208,9 +201,8 @@ Item {
 
       // Same tiling li draws, at card scale: each tile carries its launch
       // ORDER in a smaller font, and the command itself is on the per-tile
-      // hover below (0: "on the Main Panel, it shows the tile order smaller,
-      // and on hover, shows the command set"). hoverRects, not launchRects,
-      // so a lone launcher still marks the whole thumbnail as tile 1.
+      // hover below. hoverRects, not launchRects, so a lone launcher still
+      // marks the whole thumbnail as tile 1.
       LaunchLayoutOverlay {
         // Above the watermark (z 1): the tile grid and its numbers are
         // content, the watermark is background.
@@ -219,16 +211,15 @@ Item {
         visible: root.hoverRects.length > 0
         rects: root.hoverRects
         labels: root.orderLabels
-        // Two 75% cuts from the original 9px (0, twice: "reduce the px size
-        // of the numbers", then "the numbers are still too big") -- on a 56x38
-        // card these are a position marker, not something to read. 9 -> 7 -> 5.
+        // Two 75% cuts from the original 9px -- on a 56x38 card these are a
+        // position marker, not something to read. 9 -> 7 -> 5.
         labelPixelSize: Math.max(Style.space(4),
           Math.round((Style.font.body - Style.space(3)) * 0.75 * 0.75))
         showFsCaption: false
         lineColor: root.foreground
         // The card tiles read quieter than li's: a set tile's white tint and
-        // border drop to grey (0: "soften the tiles on the main li's down to
-        // grey"). li keeps the white -- that is the editor, this is the map.
+        // border drop to grey. li keeps the white -- that is the editor, this
+        // is the map.
         setColor: "#b6b6b6"
         // The same red the Auto Launch toggle turns when it is off.
         disabledBorderColor: "#e08a8a"
@@ -236,12 +227,11 @@ Item {
         launchEnabled: root.launchEnabled
       }
 
-      // The red active border is gone (0: "lose the red border, just shows
-      // whats set in the WS as is"). Auto Launch being off is now said by
+      // The red active border is gone. Auto Launch being off is now said by
       // the tile overlay colour instead.
 
       // Soft blue halo while THIS workspace's editor is open, so it's clear
-      // which line item the open li belongs to (0).
+      // which line item the open li belongs to.
       TileGlow {
         glowColor: "#7aa2f7"
         hovered: root.active
@@ -271,9 +261,7 @@ Item {
           hoverEnabled: true
           acceptedButtons: Qt.NoButton
           // The card underneath IS clickable, so the pointer must not flip
-          // back to an arrow over a tile (0: "dont change the mouse tip on
-          // hover in the list items, keep it change to the thumb if its
-          // clickable").
+          // back to an arrow over a tile.
           cursorShape: Qt.PointingHandCursor
 
           SsToolTip {
@@ -281,13 +269,12 @@ Item {
             visible: parent.containsMouse && root.hoverTextFor(index) !== ""
             // The clamp that used to be written out here is SsToolTip's own
             // job now, for every tooltip in the plugin rather than just this
-            // one (0: "CONSTRAIN ALL HOVERS TO THIER RESPECTIVE PANEL"). The
-            // frame is still passed explicitly, so the card's tooltips are
-            // clamped even if the objectName walk ever comes up empty.
+            // one. The frame is still passed explicitly, so the card's
+            // tooltips are clamped even if the objectName walk ever comes up
+            // empty.
             clampTo: root.clampTarget
             // A command can be any length, so this one wraps rather than
-            // running off the panel (0: "word wrap ALL mouseovers if they bust
-            // the panel").
+            // running off the panel.
             text: root.hoverTextFor(index)
             fontSize: Style.font.body
           }

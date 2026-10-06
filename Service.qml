@@ -144,8 +144,7 @@ Item {
       // Which pane opens FULL SCREEN, remapped past any empty slot exactly
       // the way Panel.wsSetting does it. It was missing here, so the launch
       // path never even saw the pick -- the setting saved, drew its glyph in
-      // li, and then nothing on screen ever opened full screen (0: "or full
-      // screen for one, with the others open behind").
+      // li, and then nothing on screen ever opened full screen.
       fullScreenIndex: Model.normalizeFullScreenIndex(
         panesRaw ? JSON.parse(JSON.stringify(panesRaw)) : null,
         (w && typeof w.fullScreenIndex === "number") ? w.fullScreenIndex : -1)
@@ -291,11 +290,10 @@ Item {
 
   // Global Rando Wallpaper (the config card's checkbox/shuffle button):
   // every workspace gets its own fresh random pick -- from ITS OWN resolved
-  // pool if it has a custom one, else the shared source folder (0: "setting
-  // a custom background pool for a WS... overrides the global pool for a
-  // rendomizer push"). This used to list ONE shared folder and spray those
-  // same results across all ten workspaces, ignoring any custom pool
-  // entirely -- a real bug, not a missing feature.
+  // pool if it has a custom one, else the shared source folder. This used to
+  // list ONE shared folder and spray those same results across all ten
+  // workspaces, ignoring any custom pool entirely -- a real bug, not a
+  // missing feature.
   //
   // Grouped by resolved folder (wsConfig's poolFolder, custom-or-global
   // fallback already built in) so a shared global pool still costs one
@@ -305,8 +303,8 @@ Item {
   // ready as the fallback the moment anything else needs them: a custom pool
   // that comes back with 0 images falls back to the global pick for that
   // workspace; a custom pool with exactly 1 image stays pinned to it every
-  // time (0, asked directly: "use that one image every time") -- nothing to
-  // vary, but still drawn from its own pool, not overridden.
+  // time -- nothing to vary, but still drawn from its own pool, not
+  // overridden.
   property var _shuffleQueue: []
   property string _shuffleGlobalFolder: ""
   property var _shuffleGlobalLines: []
@@ -376,8 +374,8 @@ Item {
 
   // Randomize draws from a single folder the user picks per workspace
   // (defaulting to the shared source folder), not an automatic union with
-  // the theme's own backgrounds -- Chad asked to choose the source
-  // explicitly rather than have it decided for him.
+  // the theme's own backgrounds -- the source is chosen explicitly rather
+  // than decided automatically.
   function resolveRandom(id, force, apply) {
     if (apply === undefined) apply = true
     if (!force) {
@@ -407,10 +405,10 @@ Item {
 
   // Clone takes the picture with it. A clone copies the source's settings --
   // including its POOL -- but random mode resolves a pick PER WORKSPACE, so
-  // the clone came up showing a different image from the one being cloned
-  // (0: "when you clone a workspace, clone the wallpaper too"). Copying the
-  // source's current pick into each target makes them match now; a later
-  // shuffle still rerolls them independently, which is what the pool is for.
+  // the clone came up showing a different image from the one being cloned.
+  // Copying the source's current pick into each target makes them match now;
+  // a later shuffle still rerolls them independently, which is what the pool
+  // is for.
   function mirrorRandomPick(fromId, targets) {
     var src = service.randomCache[String(fromId)]
     if (!src || !targets || targets.length === 0) return
@@ -440,7 +438,7 @@ Item {
   }
 
   // Downloads once into the cache dir when the source is set to a URL --
-  // "download once, cache locally" per how Chad wants this to behave. Nothing
+  // fetched once and cached locally, not re-fetched automatically. Nothing
   // re-triggers this beyond the setting itself changing, so a
   // stale/rearranged remote listing needs the setting re-saved to pick up.
   function fetchRepoIfUrl() {
@@ -452,9 +450,7 @@ Item {
   Process { id: fetchRepoProc }
 
   // A pool-folder change is pure state -- it never redraws any workspace's
-  // wallpaper by itself (0, repeatedly, emphatically: "it only sets the
-  // global pool, the user sets the actual bg, or clicks shuffle, that's when
-  // the wallpapers change"). No reroll here. The new pool is picked up for
+  // wallpaper by itself. No reroll here. The new pool is picked up for
   // free, with zero extra code, the next time anything actually draws: a
   // real Shuffle (randomizeAllWorkspacesOnce / a single workspace's shuffle,
   // both read the live-resolved pool per workspace at shuffle time) or an
@@ -473,8 +469,7 @@ Item {
   // The configured panes that would launch on `id` right now, or null when
   // nothing should: global switch off, this workspace paused, nothing
   // configured, or ANY window already open there. No more per-slot on/off --
-  // a slot with data in it IS in the launch set (0: "if an auto launch is
-  // set and auto launch is on, then it launches as normal").
+  // a slot with data in it IS in the launch set.
   function launchablePanes(id) {
     if (id < 1) return null
     if (!service.autoLaunchEnabled) return null  // global kill switch always wins
@@ -549,18 +544,15 @@ Item {
   property bool randomizedOnce: false
 
   // The randomize cluster reveals itself on hover and then stays put for the
-  // rest of the panel-open (0: "11a sits there waiting, 11b and 11c are hidden,
-  // ON HOVER fire 11b and 11c ... they stay the rest of the session, resets on
-  // session open"). Here, not in Panel, so a settings write doesn't hide them
-  // again; Panel clears both when the panel closes.
+  // rest of the panel-open. Here, not in Panel, so a settings write doesn't
+  // hide them again; Panel clears both when the panel closes.
   property bool randomizeRevealed: false
   // Timestamp of the last shuffle. The cards' staggered fade is for THAT and
   // nothing else -- see Panel.shuffleJustRan.
   property double shuffleAt: 0
   // li's clone line plays once per panel-open and then stays put; this is
-  // what remembers it across li being closed and reopened (0: "only fires
-  // once now, and stays till panel close"). Cleared in Panel.onOpenedChanged
-  // beside randomizeRevealed.
+  // what remembers it across li being closed and reopened. Cleared in
+  // Panel.onOpenedChanged beside randomizeRevealed.
   property bool cloneRevealed: false
   property bool randomizeArmed: false
 

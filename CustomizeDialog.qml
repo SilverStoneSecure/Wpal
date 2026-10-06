@@ -27,23 +27,21 @@ Item {
   property bool randomizedOnce: false
   // Whether the clone line has already run this panel-open. Panel keeps the
   // flag in the service so it survives li closing, reopening and the settings
-  // writes that rebuild this dialog (0: "only fires once now, and stays till
-  // panel close").
+  // writes that rebuild this dialog.
   property bool cloneAlreadyShown: false
   signal cloneShown()
   // Wind the clone line back to just its own mark. Called whenever li stops
-  // being on screen -- panel closed, bar closed, li dismissed (0: "it SHOULD:
-  // reset to just itself on every lost focus of its panel"). Clearing the
+  // being on screen -- panel closed, bar closed, li dismissed. Clearing the
   // service flag alone was not enough: this dialog is HIDDEN, not destroyed,
   // so `cloneBox.phase` sat at 12 and the finished line was still drawn the
   // next time it came up.
   function resetClone() { cloneBox.reset() }
   // Play the clone line from here, the way a press on it does -- the only way
-  // to watch the run without 0's pointer (debug rig; goes with the rest of it).
+  // to trigger the run without a pointer (debug aid for exercising the
+  // animation without clicking).
   function playClone() { cloneBox.play() }
-  // A click on the preview while a child panel is open kills that child (0:
-  // "let the clild die on click of the previoius preview"). The blanket below
-  // swallows every other click on li while a child is up.
+  // A click on the preview while a child panel is open kills that child. The
+  // blanket below swallows every other click on li while a child is up.
   signal childDismissRequested()
   property var updateFn: function(id, patch) {}
 
@@ -53,18 +51,18 @@ Item {
   property int expandedSlot: -1
 
   // Wallpaper-source section (Global/Custom radios + randomize), collapsed
-  // by default and revealed by "Set Wallpaper" (0: "trying to compact, the
-  // panel was getting busy"). Toggled by the new row under WS(N).
+  // by default and revealed by "Set Wallpaper". Toggled by the new row under
+  // WS(N).
 
   // Which configured slot (if any) opens full screen -- owned by Panel.qml,
   // persisted via updateFn like everything else here. -1 = none designated.
-  // Only meaningful at 2+ configured launchers (0: a single launcher already
-  // fills the workspace, no separate flag needed there).
+  // Only meaningful at 2+ configured launchers -- a single launcher already
+  // fills the workspace, so no separate flag is needed there.
   property int fsSlot: -1
   signal fsSlotRequested(int idx)
-  // ONE launcher is enough (0: "a single AL should still show the Full screen
-  // option"). It used to need two, on the reasoning that a lone window has
-  // nothing to be full screen against -- but it is still a real setting for
+  // ONE launcher is enough. It used to need two, on the reasoning that a
+  // lone window has nothing to be full screen against -- but it is still a
+  // real setting for
   // that window, and hiding the toggle read as the control being missing.
   readonly property bool fsEligible: root.launchCount >= 1
   function toggleFs(idx) { root.fsSlotRequested(root.fsSlot === idx ? -1 : idx) }
@@ -95,29 +93,25 @@ Item {
   // Open one launcher's own config panel beside li (see AutoLaunchConfig.qml)
   // -- replaces the popup that used to open over the preview.
   signal editLauncherRequested(int idx)
-  // Per-workspace wallpaper pool (0: "we lost the override global, sort that
-  // out select a pool just for this workspace"), behind the "..." below.
+  // Per-workspace wallpaper pool, behind the "..." below.
   signal poolPickRequested()
   // A folder chosen in the inline pool picker that drops in where the preview
   // is, rather than in a separate picker panel.
   signal poolChosen(string path)
   // Drag one launcher's tile onto another: they trade places, full-screen
-  // pick riding along (0: "they just replace each other one for one and keep
-  // theyre full screen status").
+  // pick riding along.
   signal panesSwapRequested(int from, int to)
 
   // li's own settings, disclosed by EITHER "..." -- the one just below the
-  // first delimiter and the one at the bottom centre of the preview (0 asked
-  // for both). Two triggers, one block, so the pool override and the Auto
-  // Launch checkbox each exist exactly once; the block itself sits at the
-  // bottom, where 0 wants the checkbox.
+  // first delimiter and the one at the bottom centre of the preview. Two
+  // triggers, one block, so the pool override and the Auto Launch checkbox
+  // each exist exactly once; the block itself sits at the bottom.
   property bool settingsOpen: false
   onWorkspaceIdChanged: root.settingsOpen = false
 
   // True while one of li's own side panels (Pane config, Clone) is open. li
-  // then stops taking clicks entirely -- 0: "a click on the list item editor
-  // panel should not be allowed to be clicked if a child is open". The click
-  // is swallowed, not rerouted: nothing happens until the child is closed.
+  // then stops taking clicks entirely. The click is swallowed, not rerouted:
+  // nothing happens until the child is closed.
   // The inline pool picker is part of li, not a child, so it doesn't block.
   property bool childOpen: false
 
@@ -125,8 +119,7 @@ Item {
   implicitHeight: column.implicitHeight
 
   // Where the preview image starts, relative to this dialog's own top edge.
-  // Panel.qml lines the wallpaper picker up with it (0: "have the picker
-  // panel open INLINE with the previews level").
+  // Panel.qml lines the wallpaper picker up with it.
   readonly property real previewTop: previewBox.y
 
   // Clone moved out to its own panel (CloneDialog.qml), opened by Panel
@@ -163,9 +156,7 @@ Item {
   // the one case where args means something separate from line 1.
   //
   // Args formatting matches paneDescWrapped() below -- the li tile's own
-  // on-preview label -- not a separate "args: X" convention (0: "the hover
-  // on a li item AL has the same behaviour as the li editor, drop the args
-  // on a line, add --").
+  // on-preview label -- not a separate "args: X" convention.
   function paneTooltip(idx) {
     // Guarded: the tile repeaters can outlive a pane by a frame when a slot
     // is removed, and an undefined p threw here.
@@ -185,9 +176,9 @@ Item {
     var p = root.cfg.panes[idx]
     if (!p) return "(not set)"
     var args = String(p.args || "").trim()
-    // The args come too (0: "If a AL has args, show it on the lie and the main
-    // preview"). Two panes on the same app were indistinguishable without
-    // them -- ws6's pair both read "foot" when one of them is "foot claude".
+    // The args come too. Two panes on the same app were indistinguishable
+    // without them -- ws6's pair both read "foot" when one of them is "foot
+    // claude".
     // Written the way it actually runs, app then args.
     if (p.appId !== "") {
       var name = root.appLabelFor(p.appId)
@@ -198,8 +189,7 @@ Item {
 
   // li's own tile label, NOT paneDesc() -- that one stays as-is for
   // fsHoverList's single-line summary and the tooltip's separate "args: X"
-  // format. Here args get a forced break and a "--" marker (0: "if args
-  // exist for a cmd, line wrap it and put a -- before the args"), landing on
+  // format. Here args get a forced break and a "--" marker, landing on
   // their own line inside the tile's existing wrap (LaunchLayoutOverlay's
   // cmdText: 3 lines, then elide). A command-only pane (empty app, args
   // typed straight into the args box -- see AL's ssh recipe) has no separate
@@ -344,9 +334,8 @@ Item {
   // rebuilds every delegate the moment the model is a different ARRAY -- even
   // an identical one. `hoverRectsRaw` is rebuilt on any cfg change, so a pane
   // swap used to tear down and recreate all the tiles a frame after the drop:
-  // that is the flash on the tile that moved (0: "the MOVED panel has a glow
-  // flash, remove it"). Hand on the same array unless the geometry actually
-  // changed.
+  // that is the flash on the tile that moved. Hand on the same array unless
+  // the geometry actually changed.
   property var hoverRects: []
   function syncHoverRects() {
     var next = root.hoverRectsRaw
@@ -355,12 +344,10 @@ Item {
   onHoverRectsRawChanged: root.syncHoverRects()
   Component.onCompleted: root.syncHoverRects()
   // On-tile label per hoverRects entry -- the pane's own command/app name,
-  // carried back onto the same "N. " position number main's cards never lost
-  // (0: "bring back the li numbers inside the preview on main. carry over the
-  // number onto the li editor scale it appropriately" -- same "N. " format as
-  // fsHoverList above, not the bare "N" main uses, since this tile still
-  // needs room for the command text after it). "" for a tile with nothing
-  // configured (hides it).
+  // carried back onto the same "N. " position number main's cards never
+  // lost. Same "N. " format as fsHoverList above, not the bare "N" main
+  // uses, since this tile still needs room for the command text after it.
+  // "" for a tile with nothing configured (hides it).
   readonly property var launchLabels: root.hoverRects.map(function(r, i) {
     return root.paneHasData(i) ? (i + 1) + ". " + root.paneDescWrapped(i) : ""
   })
@@ -376,26 +363,23 @@ Item {
   // a short delay: moving from the tile ONTO the ✕ takes the hover off the
   // tile, and without the delay the button would vanish from under the
   // pointer before it could be clicked. The ✕ re-marks it on the way in, so
-  // the two hovers stack (0: "I know its two level hovers").
+  // the two hovers stack.
   // Drag state for the preview tiles. The overlay draws from these; the tile
   // MouseAreas below write them. dragLimit keeps the carried tile inside its
   // own neighbourhood -- it is a nudge that says "this is moving", not a
   // free-floating icon.
   // The grip currently under the pointer, before any press. Hovering it
-  // marks every OTHER tile as a candidate (0: "when the name hitbox is
-  // covered, change ALL tiles not chosen to a tc").
+  // marks every OTHER tile as a candidate.
   property int gripSlot: -1
   property int dragSlot: -1
   property real dragDX: 0
   property real dragDY: 0
   property int dropSlot: -1
-  // The carry is free now -- the tile goes wherever the pointer takes it
-  // (0: "it gets dragged to another launcher space"). Nothing is written
-  // until the drop.
+  // The carry is free now -- the tile goes wherever the pointer takes it.
+  // Nothing is written until the drop.
   //
   // A tile is claimed when the HELD tile's centre lands inside the middle
-  // 75% of its mass (0: "when the dragged tile gets inside the 75% of the
-  // targets mass"), which is a 12.5% margin all round.
+  // 75% of its mass, which is a 12.5% margin all round.
   function targetForCentre(u, v) {
     var rs = root.hoverRects
     for (var i = 0; i < rs.length; i++) {
@@ -411,10 +395,9 @@ Item {
   // ---- the landing ------------------------------------------------------
   //
   // The ONE motion a drop is allowed: on release the HELD tile grows into the
-  // cell it was over, in place, and nothing happens after that (0: "After
-  // mouse release, inc the tile dragged to fit the space its over, thats it,
-  // dont do anything after that"). The old settle -- which grew the OTHER
-  // tile, back at its own home -- is gone for good; so is any post-drop pulse.
+  // cell it was over, in place, and nothing happens after that. The old
+  // settle -- which grew the OTHER tile, back at its own home -- is gone for
+  // good; so is any post-drop pulse.
   //
   // landFrom is the cell whose tile is in flight, landTo the cell it flies
   // into.
@@ -464,8 +447,7 @@ Item {
 
   // Which tile's MIDDLE a point falls in: the central half of the cell, so a
   // trade is committed by crossing into the heart of another tile rather than
-  // by grazing its edge (0: "when the users pointer hits the middle of
-  // another tile"). -1 when the point is in no tile's middle.
+  // by grazing its edge. -1 when the point is in no tile's middle.
   function rectCenterIndexAt(u, v) {
     var rs = root.hoverRects
     for (var i = 0; i < rs.length; i++) {
@@ -507,17 +489,15 @@ Item {
     return "Layout: " + o[root.safeLayoutIdx].name + " (" + (root.safeLayoutIdx + 1) + "/" + o.length + ")"
   }
 
-  // Removes the slot outright (0: "add a remove Auto Launcher... bump all
-  // numbers below up one, and go back to add a launcher") -- splices it out
-  // rather than blanking it in place, so a later slot never sits without an
-  // earlier one (the strictly-progressive rule). Shifts the full-screen pick
-  // down with whatever was after the removed slot, or clears it if the
-  // removed slot WAS the pick.
+  // Removes the slot outright -- splices it out rather than blanking it in
+  // place, so a later slot never sits without an earlier one (the
+  // strictly-progressive rule). Shifts the full-screen pick down with
+  // whatever was after the removed slot, or clears it if the removed slot
+  // WAS the pick.
   // Empties THIS workspace's launchers in one write -- the per-workspace twin
-  // of the main panel's Clear-all glyph (0: "add a garbage glyph, same as
-  // main, put it beside the liE auto launch button"). It clears the slots and
-  // the full-screen pick; it does NOT touch either Auto Launch switch, same
-  // as the main panel's.
+  // of the main panel's Clear-all glyph. It clears the slots and the
+  // full-screen pick; it does NOT touch either Auto Launch switch, same as
+  // the main panel's.
   function clearLaunchers() {
     root.expandedSlot = -1
     root.updateFn(root.workspaceId, { panes: [], fullScreenIndex: -1 })
@@ -545,9 +525,8 @@ Item {
         width: column.width
         spacing: Style.spacing.controlGap
 
-        // Double-sized SilverStone mark, same as the main panel's title and the
-        // launcher-config panel's (0: "font and icon all panels titles in this
-        // format").
+        // Double-sized SilverStone mark, same as the main panel's title and
+        // the launcher-config panel's.
         Text {
           Layout.alignment: Qt.AlignVCenter
           textFormat: Text.PlainText
@@ -574,11 +553,10 @@ Item {
       foreground: root.foreground
     }
 
-    // The "Change Wallpaper" pill that used to sit here is gone (0: "lose the
-    // Change Wallpaper pill, set does the job") -- "Set" opens the picker for
-    // this workspace's pool. In its place, the first of the two "..." triggers
-    // for li's settings block, right under the first delimiter where 0 asked
-    // for it.
+    // The "Change Wallpaper" pill that used to sit here is gone -- "Set"
+    // opens the picker for this workspace's pool. In its place, the first of
+    // the two "..." triggers for li's settings block, right under the first
+    // delimiter.
     Item {
       width: column.width
       // The row is as tall as the tallest of these, ALWAYS -- `implicitHeight`
@@ -590,9 +568,9 @@ Item {
 
       // Add the next launcher. Deliberately NOT gated on Auto Launch being on:
       // li is meant to be editable with the switches off, and with the gate on
-      // there was no way to add a launcher at all while Global Auto Launch was
-      // off -- which is what 0 hit ("were missing add auto launch button").
-      // Left-justified on this row, with the dots still centred on it.
+      // there was no way to add a launcher at all while Global Auto Launch
+      // was off. Left-justified on this row, with the dots still centred on
+      // it.
       Button {
         id: addLauncherButton
         visible: root.canAddPane()
@@ -603,10 +581,9 @@ Item {
         foreground: root.foreground
         horizontalPadding: Style.spacing.sm
         // Still width-matched to "Set" even though it has since moved to the
-        // far right of this row (0, this pass: "move the Set button to the
-        // right of the .. on the liE") -- kept for consistent pill sizing.
+        // far right of this row -- kept for consistent pill sizing.
         implicitWidth: setButton.implicitWidth
-        // Counts up as slots fill, and the button itself vanishes at 4 (0).
+        // Counts up as slots fill, and the button itself vanishes at 4.
         property bool tipOn: false
         onHovered: function(isHovered) { addLauncherButton.tipOn = isHovered }
         SsToolTip {
@@ -617,8 +594,7 @@ Item {
       }
 
       // "Set" moved out from inside the preview onto this row first, then
-      // past the "..." to the row's own right edge (0, this pass: "move the
-      // Set button to the right of the .. on the liE") -- now the rightmost
+      // past the "..." to the row's own right edge -- now the rightmost
       // control, with poolResetButton and settingsDots making room for it
       // below instead of anchoring straight to parent.right.
       Button {
@@ -633,24 +609,21 @@ Item {
         onHovered: function(isHovered) { setButton.tipOn = isHovered }
         SsToolTip {
           visible: setButton.tipOn
-          // Literal (0, this pass): "hover on the set button is 'Set
-          // BackGround for WS <N>'" -- same WS-number format as the pool
-          // picker's own tooltip above.
+          // Same WS-number format as the pool picker's own tooltip above.
           text: "Set BackGround for WS " + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
         }
         onClicked: if (root.outsideSelected) root.browseImageRequested(); else root.browsePoolRequested()
       }
 
       // The "Global" reset button that used to live here moved into the pool
-      // picker itself, as "Use Global Pool" (0: "move the Global Button out
-      // of LIE and into the picker") -- it's decided at the same moment as
-      // the pool itself now, not back on this row.
+      // picker itself, as "Use Global Pool" -- it's decided at the same
+      // moment as the pool itself now, not back on this row.
 
       Text {
         id: settingsDots
-        // Right-justified now (0: "right just ify the ... on the li Editor"),
-        // matching the main panel's own "..." row. Steps aside for "Set",
-        // the row's other permanent right-end resident.
+        // Right-justified now, matching the main panel's own "..." row.
+        // Steps aside for "Set", the row's other permanent right-end
+        // resident.
         anchors.right: parent.right
         anchors.rightMargin: setButton.width + Style.spacing.controlGap
         anchors.verticalCenter: parent.verticalCenter
@@ -667,11 +640,11 @@ Item {
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           // Opens the pool picker as a child panel to li's left, modelled on
-          // the global pool picker (0), instead of dropping it in place. A
+          // the global pool picker, instead of dropping it in place. A
           // second click closes it again.
           onClicked: root.poolPickRequested()
 
-          // It was the one unlabelled control on li (0).
+          // It was the one unlabelled control on li.
           SsToolTip {
             visible: settingsDotsMouse.containsMouse
             text: "Set Custom Pool\nfor WorkSpace " + (root.workspaceId === 10 ? "10 (0)" : String(root.workspaceId))
@@ -682,7 +655,7 @@ Item {
     }
 
     // Cycler arrows sit BESIDE the preview, level with its middle, and are
-    // plain icon buttons rather than pills (0). The preview gives up their
+    // plain icon buttons rather than pills. The preview gives up their
     // width so nothing overlaps it.
     Item {
       width: column.width
@@ -697,9 +670,8 @@ Item {
           // RowLayout, which handed its width to the preview -- and the preview
           // is height-bound to its own width (56:38), so li grew taller with no
           // launchers and shrank the moment a second one brought the cyclers
-          // back (0: "when the li windo has no launchers it lurches larger ...
-          // that pane shouldnt lurch"). Opacity keeps the space reserved, so
-          // the preview -- and li -- stay one size throughout.
+          // back. Opacity keeps the space reserved, so the preview -- and li
+          // -- stay one size throughout.
           opacity: root.launchOptions.length > 1 ? 1 : 0
           enabled: root.launchOptions.length > 1
           iconText: "‹"
@@ -749,12 +721,9 @@ Item {
             font.pixelSize: Style.font.body
           }
 
-          // The workspace number, carried onto li's own preview too (0: "make
-          // the numbers follow to the liE preview page, scale x2 on touch they
-          // do nothing, make the numbers 50%less trans. they should be a soft
-          // tc color, when enabled, and that reddish when diabled in a Lie,
-          // keep main alone for its colors for now"). Same watermark idiom as
-          // main's WorkspaceCard: a plain Text with no MouseArea, so clicks and
+          // The workspace number, carried onto li's own preview too. Same
+          // watermark idiom as main's WorkspaceCard: a plain Text with no
+          // MouseArea, so clicks and
           // the tile grid's own hovers pass straight through it -- declared
           // here, before LaunchLayoutOverlay, so it paints BEHIND the tile grid
           // instead of over it.
@@ -766,8 +735,7 @@ Item {
             // "secondary" idiom li's own Auto Launch label uses below.
             // Disabled: the reddish li already uses everywhere else for
             // launchLive (its own Auto Launch row, the preview's disabled tile
-            // outline) -- deliberately NOT main's inverted red-when-ON scheme,
-            // which 0 said to leave alone for now.
+            // outline) -- deliberately NOT main's inverted red-when-ON scheme.
             readonly property color wmColor: root.launchLive
               ? Qt.darker(root.foreground, 1.5) : "#e08a8a"
             // Main's watermark sits at 0.39 alpha; 50% less transparent lands
@@ -776,8 +744,8 @@ Item {
             style: Text.Outline
             styleColor: Qt.rgba(0, 0, 0, 0.47)
             font.family: Style.font.family
-            // Main's own formula, doubled (0: "scale x2"), against the
-            // preview's own height instead of a card's.
+            // Main's own formula, doubled, against the preview's own height
+            // instead of a card's.
             font.pixelSize: Math.round(parent.height * 0.72 * 0.70 * 0.75 * 0.85 * 2)
             font.bold: true
           }
@@ -788,28 +756,22 @@ Item {
             anchors.fill: parent
             // hoverRects, not launchOptions: at exactly one launcher there is no
             // grid, but its command still gets drawn as plain text in the middle
-            // of the whole preview (0: "if theres a command/app set on a
-            // pane/tile, show it in plain text in the middle of the tile, not on
-            // top" -- i.e. in the tile itself, not only in the hover popup).
+            // of the whole preview -- in the tile itself, not only in the hover
+            // popup.
             visible: root.launchCount > 0
             rects: root.hoverRects
             lineColor: root.foreground
-            // Contrast against whatever's behind it (0: "change color of cmd
-            // on lie to contrast its bg") -- main leaves this off.
+            // Contrast against whatever's behind it -- main leaves this off.
             labelOutline: true
             // Frozen while a tile is landing, so the async swap never flips a
             // label under the flight.
             labels: root.landTo >= 0 ? root.landLabels : root.launchLabels
-            // One step down (0: "li item numbers -1 pt"). showFsCaption stays
-            // at its default true, so the full-screen pick keeps its glyph and
-            // "(fullscreen)" caption (0: "there should still be a full screen
-            // glyph").
-            // Three quarters of what it was (0: "reduce the sice of the li
-            // items by 75%") -- 11px -> 8px, which also gives a long command
-            // room to wrap inside its tile. Then +50% (0: "inc text size on
-            // liE cmd preview AND hitbox by 50%") -- MUST stay identical to
-            // gripText's font.pixelSize below, which measures this exact
-            // label to size its hitbox.
+            // One step down. showFsCaption stays at its default true, so the
+            // full-screen pick keeps its glyph and "(fullscreen)" caption.
+            // Three quarters of what it was -- 11px -> 8px, which also gives
+            // a long command room to wrap inside its tile. Then +50% -- MUST
+            // stay identical to gripText's font.pixelSize below, which
+            // measures this exact label to size its hitbox.
             labelPixelSize: Math.round(Math.max(Style.space(6),
               Math.round(Style.font.bodySmall * 0.75)) * 1.5)
             fullscreenIndex: root.landTo >= 0 ? root.landFs
@@ -832,15 +794,13 @@ Item {
             landRect: root.landRect
           }
 
-          // Per-launcher hover (0: "no buddy, on hover, for each launcher set,
-          // show its installed launcher or command" -- not a combined list, one
-          // region per cell, each showing only THAT launcher's own info). One
-          // rect covering the whole preview when there's a single launcher (no
-          // grid to divide it). Clicking a tile that HAS data opens the edit
-          // popup for it instead of passing through to the wallpaper picker
-          // (0's long-planned "preview click opens a launcher dialogue once 1+
-          // are configured" -- "Set Wallpaper" above exists precisely to keep
-          // wallpaper-picking reachable once this takes over the click).
+          // Per-launcher hover -- not a combined list, one region per cell,
+          // each showing only THAT launcher's own info. One rect covering the
+          // whole preview when there's a single launcher (no grid to divide
+          // it). Clicking a tile that HAS data opens the edit popup for it
+          // instead of passing through to the wallpaper picker -- "Set
+          // Wallpaper" above exists precisely to keep wallpaper-picking
+          // reachable once this takes over the click.
           Repeater {
             model: root.hoverRects
 
@@ -863,17 +823,13 @@ Item {
 
               // Press-and-release on the SAME tile opens that launcher's config
               // panel; drag onto another tile and the two launchers swap places
-              // instead (0: "allow them to be clicked and dragged into the
-              // different positions on the workspace, they just replace each
-              // other one for one and keep theyre full screen status"). Only
-              // meaningful once there are two tiles to trade between.
+              // instead. Only meaningful once there are two tiles to trade
+              // between.
               onReleased: root.openLauncher(index)
 
-              // NO hover pill on these tiles (0: "a pill the appears on top
-              // of the tile, it has its name, dont, its info is already seen
-              // on the tile preview ffs. have NOTHING there"). The command is
-              // drawn in the tile itself, so the pill was the same string
-              // twice, over the top of the thing it described. The main
+              // NO hover pill on these tiles. The command is drawn in the
+              // tile itself, so the pill was the same string twice, over the
+              // top of the thing it described. The main
               // panel's cards keep theirs -- they show order numbers, not
               // commands.
             }
@@ -881,11 +837,11 @@ Item {
 
           // ---- drag handles -------------------------------------------
           //
-          // An invisible box around the command text, and nothing else (0:
-          // "put an invisible hit box around the desc"). Dragging a whole
-          // tile fought with the click that opens the editor; the description
-          // is the part that reads as "the thing itself", so that is the
-          // grip. The rest of the tile stays a plain click.
+          // An invisible box around the command text, and nothing else.
+          // Dragging a whole tile fought with the click that opens the
+          // editor; the description is the part that reads as "the thing
+          // itself", so that is the grip. The rest of the tile stays a plain
+          // click.
           Repeater {
             model: root.hoverRects
 
@@ -894,19 +850,16 @@ Item {
               required property int index
               readonly property real cx: (modelData[0] + modelData[2] / 2) * previewBox.width
               readonly property real cy: (modelData[1] + modelData[3] / 2) * previewBox.height
-              // THE COMMAND TEXT, and nothing more (0: "the MOVE mouseover
-              // should be restricted to the text of the cmd. I told you that
-              // already"). It used to be a band across 70% x 34% of the tile,
+              // THE COMMAND TEXT, and nothing more. It used to be a band
+              // across 70% x 34% of the tile,
               // which is far more than the words cover -- so the four-way
               // cursor, and the drag, claimed most of the tile. `gripText`
               // below is a hidden copy of exactly what the overlay draws, so
               // `paintedWidth`/`paintedHeight` are the real ink; the box is
               // that plus a hair, and never wider than the tile.
               // A floor, so a one-word command is still grabbable, and a
-              // ceiling at the tile itself (0: "add space to the hitbox like
-              // you said before use your suggestion"). The ink-plus-a-hair box
-              // itself is then +50% (0: "inc text size on liE cmd preview AND
-              // hitbox by 50%"), still floored and still capped at the tile.
+              // ceiling at the tile itself. The ink-plus-a-hair box itself is
+              // then +50%, still floored and still capped at the tile.
               readonly property real inkW: Math.min(modelData[2] * previewBox.width - 2,
                 Math.max(Style.space(40), gripText.paintedWidth + Style.space(4)) * 1.5)
               readonly property real inkH: Math.min(modelData[3] * previewBox.height - 2,
@@ -942,7 +895,7 @@ Item {
               visible: root.paneHasData(index) && root.launchCount >= 2
               enabled: visible
               hoverEnabled: true
-              // 0 likes the four-way cursor: it says "this thing moves".
+              // The four-way cursor says "this thing moves".
               cursorShape: Qt.SizeAllCursor
               acceptedButtons: Qt.LeftButton
               preventStealing: true
@@ -952,8 +905,7 @@ Item {
                 // This band sits ON TOP of the tile's own hover area, so while
                 // the pointer is over it that area reports "not hovered" and
                 // the tile's ✕ vanished -- which, since the grip covers the
-                // middle of the tile, is most of the time (0: "you lost the
-                // delete button in the li editor tile preview"). Keep the tile
+                // middle of the tile, is most of the time. Keep the tile
                 // marked as hovered from here too.
                 root.markHover(index, containsMouse)
               }
@@ -985,8 +937,7 @@ Item {
               }
 
               // Dropped on its own tile (or on nothing): everything just
-              // springs back, no write, no pulse (0: "if it gets dropped in
-              // its own ori tile, nothing happens, release everhting").
+              // springs back, no write, no pulse.
               onReleased: {
                 var to = root.dropSlot
                 var from = index
@@ -1004,9 +955,8 @@ Item {
                 root.dragSlot = -1
                 // The pointer is still sitting on the grip, so nothing else
                 // would clear this -- and every OTHER tile would stay lit as a
-                // trade candidate after the drop was over. Let go of the whole
-                // highlight with the button (0: "just drop the selected pane,
-                // dont flash the moved one").
+                // trade candidate after the drop was over. Let go of the
+                // whole highlight with the button.
                 root.gripSlot = -1
                 root.dragDX = 0
                 root.dragDY = 0
@@ -1017,10 +967,9 @@ Item {
             }
           }
 
-          // Remove THIS launcher. Top-right of its own tile, and PERMANENT
-          // (0: "your still missing a delete button, promote it to the level of
-          // the otheres ... if I cant see it its missing"). It used to appear
-          // only while its tile was hovered, and it sat bare on the wallpaper:
+          // Remove THIS launcher. Top-right of its own tile, and PERMANENT.
+          // It used to appear only while its tile was hovered, and it sat
+          // bare on the wallpaper:
           // between the drag grip stealing the hover and a bright picture
           // behind it, it read as gone. It is now a first-class control like
           // the "+", "Set" and the full-screen toggle -- always drawn, on the
@@ -1080,9 +1029,8 @@ Item {
           // It sits on a dark chip, like the "+" and "Set" buttons. Without
           // one it was a bare glyph painted straight onto the wallpaper, and
           // over a bright image the unset state simply could not be seen --
-          // which is why 0 kept reporting it as GONE even while the control
-          // was there and working. Never paint a control bare over the
-          // preview image.
+          // it read as a missing control even while fully functional. Never
+          // paint a control bare over the preview image.
           Repeater {
             model: root.hoverRects
 
@@ -1102,9 +1050,8 @@ Item {
                 radius: Style.cornerRadius
                 // Unset: the dark chip every control over the preview wears.
                 // The pick: the CHIP goes accent and the glyph is knocked out
-                // of it (0: "theyre fine when none selected, but show a
-                // different tc more boldly when selected"). Two glyph colours
-                // on one dark chip were too close to tell apart; a lit chip
+                // of it. Two glyph colours on one dark chip were too close to
+                // tell apart; a lit chip
                 // reads from across the panel. This supersedes the earlier
                 // "pick and candidate stay matched in weight" ruling.
                 color: fsCell.fsPick ? Color.accent : Qt.rgba(0, 0, 0, 0.55)
@@ -1120,15 +1067,13 @@ Item {
                 // candidate. The two states no longer differ by glyph hue
                 // alone -- the whole chip changes.
                 // The candidate is held at half strength so the pick's lit
-                // chip carries all the weight (0: "reduce the contrast of the
-                // not selected full screen to 50%").
+                // chip carries all the weight.
                 foreground: fsCell.fsPick ? Color.popups.background
                   : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.5)
                 // Hover has to move something in both states: accent glyph on
                 // the dark chip, foreground glyph on the accent chip.
                 hoverColor: fsCell.fsPick ? Color.foreground : Color.accent
-                // Wrapped, not one long line off the side of li (0: "word wrap
-                // ALL mouseovers if they bust the panel").
+                // Wrapped, not one long line off the side of li.
                 property bool tipOn: false
                 onHovered: function(isHovered) { fsButton.tipOn = isHovered }
                 SsToolTip {
@@ -1142,8 +1087,7 @@ Item {
           }
 
           // Selection border: while one launcher's config panel is open, the
-          // preview it belongs to is outlined (0: "on selection on one AL, it
-          // needs to have a border around the preview").
+          // preview it belongs to is outlined.
           Rectangle {
             anchors.fill: parent
             visible: root.expandedSlot >= 0
@@ -1154,35 +1098,30 @@ Item {
           }
 
           // The Hyprland active-border ring that used to be drawn here is
-          // GONE (0: "theres a blue border arount the previloe tiles on the
-          // lieditor, lose it"). It took its colour from the theme's
+          // GONE. It took its colour from the theme's
           // hyprland.active-border, which on this theme is #7aa2f7 -- the one
           // blue thing on li. The selection border above (foreground, while a
           // launcher's config panel is open) is the only ring left.
 
 
           // The "+" that used to sit here, top-left INSIDE the preview, is out
-          // on the dots row above it now (0: "remove the add launcher out of
-          // the preview panel, and place it left justified inline with the
-          // ..."). The preview is the map of the workspace; the controls that
-          // act on the whole thing live on the row above.
+          // on the dots row above it now. The preview is the map of the
+          // workspace; the controls that act on the whole thing live on the
+          // row above.
 
-          // The preview's own "..." is gone (0: "lose the ... on the preview pane,
-          // that functionality should be hidden by the top ..."). The pool picker
-          // it used to reach now drops in place under the top dots instead.
+          // The preview's own "..." is gone. The pool picker it used to reach
+          // now drops in place under the top dots instead.
 
           // Opens the wallpaper picker for whichever source this workspace is
           // on. "Set" itself is gone from here now -- out on the settings row
-          // above, beside "+" (0: "move the Set button to outside the li
-          // editor preview ... same as the plus to the left"), the pairing
-          // already anticipated where "+" was matched to setButton's width.
-          // With no launchers set the preview has no panes on it, so clicking
-          // the image itself still opens the same picker.
+          // above, beside "+", the pairing already anticipated where "+" was
+          // matched to setButton's width. With no launchers set the preview
+          // has no panes on it, so clicking the image itself still opens the
+          // same picker.
 
           // The launcher editor is its own panel beside li now
-          // (AutoLaunchConfig.qml, opened by Panel when expandedSlot >= 0), not a
-          // popup over this preview (0: "when a + button is presses, it makes a new
-          // panel, similar to the picker panel, to the right of its parent").
+          // (AutoLaunchConfig.qml, opened by Panel when expandedSlot >= 0),
+          // not a popup over this preview.
         }
 
         PanelActionButton {
@@ -1205,7 +1144,7 @@ Item {
 
 
 
-    // Auto Launch gets its own delimited block here too (0).
+    // Auto Launch gets its own delimited block here too.
     PanelSeparator {
       // Same reason as the cyclers: hiding it outright shortened li by its
       // height plus a row gap the moment the last launcher was removed. It
@@ -1216,14 +1155,12 @@ Item {
     }
 
     // Per-workspace Auto Launch, styled exactly like the main panel's Global
-    // Auto Launch row (0: "style it after the main Auto Launch Disable style,
-    // copy it over"): label left, ToggleSwitch right. Soft tint when on, soft
-    // red when off -- same rule as the global row.
+    // Auto Launch row: label left, ToggleSwitch right. Soft tint when on,
+    // soft red when off -- same rule as the global row.
     // Always on screen from the moment li opens, never conditional: it used
     // to appear only once a launcher existed, so the row popped in later and
-    // shoved everything below it down (0: "write it to screen on panel load,
-    // so it doesnt jerk"). With nothing configured it renders greyed and
-    // inert instead of vanishing.
+    // shoved everything below it down. With nothing configured it renders
+    // greyed and inert instead of vanishing.
     Item {
       width: column.width
       implicitHeight: childrenRect.height
@@ -1242,16 +1179,15 @@ Item {
         id: autoLaunchLabel
         Layout.alignment: Qt.AlignVCenter
         textFormat: Text.PlainText
-        // Just the words now (0: "remode the (disabled) make it look like
-        // main") -- the main panel's row does not spell its state out either.
+        // Just the words now -- the main panel's row does not spell its
+        // state out either.
         // The toggle beside it says enabled/disabled, in its own red.
         // No fillWidth: that stretched the label into the gap and pushed the
         // glyph off the row. The spacer below does the pushing instead.
         text: "Auto Launch"
-        // White when live, greyed back when off -- not red (0: "make 6 white
-        // when on, and greyed out when disabled, (not red)"). 1.9 is the same
+        // White when live, greyed back when off -- not red. 1.9 is the same
         // step the built-in panels use for a de-emphasised label. The toggle
-        // beside it keeps its own red ("but the button stays").
+        // beside it keeps its own red.
         // Greyed right back when this workspace has no launchers at all, so
         // the row reads as inert rather than as a live setting.
         color: !parent.hasLaunchers ? Qt.darker(root.foreground, 2.4)
@@ -1261,7 +1197,7 @@ Item {
         wrapMode: Text.WordWrap
 
         // The only hover on this row, and only while there is nothing set --
-        // it says how to get started (0). With launchers configured the label
+        // it says how to get started. With launchers configured the label
         // already states enabled/disabled, so it stays quiet.
         MouseArea {
           id: alHintMouse
@@ -1282,8 +1218,7 @@ Item {
         opacity: parent.hasLaunchers ? 1 : 0.45
         checked: root.cfg.autoLaunchEnabled
         // Off reads in the same red the tiles use when auto launch is
-        // blocked (0: "color the auto launch toggle buttons the same red as
-        // the tile outline when blocking"); on is untouched.
+        // blocked; on is untouched.
         foreground: root.launchLive ? Color.foreground : "#e08a8a"
         onToggled: root.updateFn(root.workspaceId, { autoLaunchEnabled: !root.cfg.autoLaunchEnabled })
       }
@@ -1294,11 +1229,9 @@ Item {
       Item { Layout.fillWidth: true }
 
       // Empties this workspace's launchers. Same glyph, same size rule, same
-      // accent-at-rest/red-on-hover as the main panel's Clear-all (0: "add a
-      // garbage glyph, same as main") -- and the same arm-then-confirm click
-      // guard as main's (0: "add the same warning click thru on liE for
-      // delete launchers, same as main, but only effects the li"). No popup
-      // here either, same reasoning as main: a confirm dialog would be new
+      // accent-at-rest/red-on-hover as the main panel's Clear-all -- and the
+      // same arm-then-confirm click guard as main's. No popup here either,
+      // same reasoning as main: a confirm dialog would be new
       // chrome that has to reserve its own space. `clearLaunchers()` itself
       // is already scoped to `root.workspaceId` only -- arming this button
       // never touches any other workspace.
@@ -1337,7 +1270,7 @@ Item {
 
       // The delimiter: a vertical twin of PanelSeparator on the ROW's centre
       // line, 1px, three quarters of the toggle's height -- the main panel's
-      // rule, same maths (0: "and a delimiter then the garbage can").
+      // rule, same maths.
       Rectangle {
         x: Math.round(autoLaunchRow.width / 2)
         y: autoLaunchRow.y + Math.round((autoLaunchRow.height - height) / 2)
@@ -1347,11 +1280,10 @@ Item {
       }
     }
 
-    // Clone, a line BELOW the Auto Launch row and hard right (0: "drop the
-    // clone workspace a line below and justified rt"). At rest it is just the
-    // one mark; pressing it plays 0's sequence left to right at an even 130ms
-    // step, once, and the finished line stays -- across panel opens now, not
-    // just this one.
+    // Clone, a line BELOW the Auto Launch row and hard right. At rest it is
+    // just the one mark; pressing it plays the sequence left to right at an
+    // even 130ms step, once, and the finished line stays -- across panel
+    // opens now, not just this one.
     Item {
       width: column.width
       implicitHeight: cloneBox.implicitHeight
@@ -1363,19 +1295,16 @@ Item {
         implicitWidth: cloneRow.implicitWidth
         implicitHeight: cloneRow.implicitHeight
 
-        // Plays ON CLICK now, not on hover (0: "on click three dashes three
-        // glyphs with commas, then ... after the last glyph").
+        // Plays ON CLICK now, not on hover.
         //
         // 0 = at rest, just the parent mark. 1-3 = that many dashes (the ">"
         // lands with the third). Then alternating mark/comma: 4 = 1st copy,
         // 5 = comma, 6 = 2nd copy, 7 = comma, 8 = 3rd copy, then 10/11/12
         // add the trailing "..." ONE DOT AT A TIME at the same step as the
-        // rest (0: "have the ... come out at the same pace as the rest").
+        // rest.
         property int phase: 0
         property bool playing: false
-        // Three states, in this order (0: "on hover, before a click, change
-        // to a theme color, but the animation goes back the the ori color,
-        // then its spent till next"):
+        // Three states, in this order:
         //   at rest            -- the original dimmed foreground
         //   hovered, unspent   -- the theme accent, saying "press me"
         //   playing / spent    -- back to the original, and it stays there
@@ -1402,20 +1331,18 @@ Item {
           id: cloneStep
           running: cloneBox.playing && cloneBox.phase < 12
           repeat: true
-          // One even step the whole way through -- no pauses (0: "lose the
-          // delays"), they left the commas reading as a stray ellipsis.
+          // One even step the whole way through -- no pauses, which had left
+          // the commas reading as a stray ellipsis.
           interval: 130
           onTriggered: {
             cloneBox.phase = cloneBox.phase + 1
             if (cloneBox.phase < 12) return
-            // Done. It plays ONCE and stops (0: "the animation is on hover,
-            // once and thats it") -- no loop. If the pointer has already left
-            // (a click opens the Clone panel, which takes it) wind back to
-            // rest so the next hover starts clean.
+            // Done. It plays ONCE and stops -- no loop. If the pointer has
+            // already left (a click opens the Clone panel, which takes it)
+            // wind back to rest so the next hover starts clean.
             // ONE run per panel-open, and the finished line STAYS. The Clone
             // panel opens HERE, at the end of the run, not on the press that
-            // started it (0: "the clone button runs once then when its done,
-            // open the clone diag") -- the line is the countdown to it.
+            // started it -- the line is the countdown to it.
             cloneBox.playing = false
             root.cloneShown()
             root.cloneOpenRequested()
@@ -1424,8 +1351,7 @@ Item {
 
         // Nothing happens on hover any more. The PRESS runs it, once, and
         // that is the only run there is until the panel has been closed and
-        // opened again (0: "no more runs until the window opens again and it
-        // is pressed") -- play() is a no-op once cloneAlreadyShown is set.
+        // opened again -- play() is a no-op once cloneAlreadyShown is set.
 
         Row {
           id: cloneRow
@@ -1438,8 +1364,7 @@ Item {
             text: ""
             color: cloneBox.glyph
             // Same weight as the main panel's Clear-all trash glyph, which is
-            // iconLarge (0: "inc the clone glyph so it is the same as the
-            // delete glyph on main"). The dashes, commas and dots stay at body
+            // iconLarge. The dashes, commas and dots stay at body
             // size -- the MARK is the control, the line is its trail.
             font.family: Style.font.family
             font.pixelSize: Style.font.iconLarge + 2
@@ -1452,8 +1377,8 @@ Item {
               var n = Math.min(cloneBox.phase, 3)
               var out = " "
               for (var i = 0; i < n; i++) out += "-"
-              // The head lands once the shaft is full (0: "8 is missing >
-              // after the dashes"), same as the main panel's arrow did.
+              // The head lands once the shaft is full, same as the main
+              // panel's arrow did.
               if (n >= 3) out += ">"
               return out
             }
@@ -1477,7 +1402,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: modelData.sep > 0 && cloneBox.phase >= modelData.sep
                 textFormat: Text.PlainText
-                text: ","   // no space (0: "lose the spaces between commas")
+                text: ","   // no space
                 color: cloneBox.glyph
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body + 2
@@ -1490,22 +1415,19 @@ Item {
                 textFormat: Text.PlainText
                 // The leading space only survives on the FIRST of these (the one
                 // with no comma before it) -- after a comma the glyph sits tight
-                // against it (0: "lose the spaces between commas"; the gap was
-                // this space, not the comma).
+                // against it.
                 text: (modelData.sep > 0 ? "" : " ") + ""
                 color: cloneBox.glyph
                 font.family: Style.font.family
                 font.pixelSize: Style.font.iconLarge + 2
-                // Grows in rather than snapping (0: "starting small and
-                // gowning to its current size").
+                // Grows in rather than snapping.
                 scale: visible ? 1 : 0.3
                 Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
               }
             }
           }
 
-          // The tail 0 asked for: once the 7th mark has landed, "..." closes
-          // the line out (0: "add 3 more glyphs, then ... at the end"). A
+          // Once the 7th mark has landed, "..." closes the line out. A
           // sibling of the Repeater, NOT a second delegate inside it.
           Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -1533,9 +1455,7 @@ Item {
 
           SsToolTip {
             visible: cloneMouse.containsMouse
-            // Changes once the line has run, for the rest of this panel-open
-            // (0: "no run again, until the hover over 'You Know you Want
-            // To!'").
+            // Changes once the line has run, for the rest of this panel-open.
             text: root.cloneAlreadyShown ? "You Know you Want To!" : "Clone this WorkSpace"
             fontSize: Style.font.body
           }
@@ -1544,24 +1464,22 @@ Item {
     }
 
     // The old stacked accordion (one row per slot, inline Dropdown+args
-    // editor, "Remove Auto Launcher") and "Launch now" are DEPRECATED (0,
+    // editor, "Remove Auto Launcher") and "Launch now" are DEPRECATED (as of
     // 2026-09-22). Adding/editing/removing a launcher happens in the Pane
     // config panel beside li.
     //
-    // SAVE IS GONE (0: "on WP remove save button, we will leave that to esc
-    // just remove it") -- everything here writes live, so the button only ever
+    // SAVE IS GONE -- everything here writes live, so the button only ever
     // closed the panel, which Escape does. The delimiter that separated it
-    // from the Auto Launch row went with it (0: "remove the bottom delimiter
-    // after all that"), and the clone moved UP onto that row, right-justified,
+    // from the Auto Launch row went with it, and the clone moved UP onto
+    // that row, right-justified,
     // so li's last line reads like the main panel's: the Auto Launch state on
     // the left, its one glyph control on the right.
   }
 
   // Declared last, so it sits above everything above: while a child panel is
-  // open, a click anywhere on li closes it (0: "if I click on a parent
-  // panel, it should close a child") -- generalizes what used to be two
-  // narrow holes punched in an otherwise click-eating blanket (the preview,
-  // and the clone glyph) to the whole panel.
+  // open, a click anywhere on li closes it -- generalizes what used to be
+  // two narrow holes punched in an otherwise click-eating blanket (the
+  // preview, and the clone glyph) to the whole panel.
   MouseArea {
     id: childBlocker
     anchors.fill: parent
@@ -1570,8 +1488,7 @@ Item {
     hoverEnabled: true
     acceptedButtons: Qt.AllButtons
     onClicked: function(mouse) {
-      // The clone glyph stays live and keeps its own toggle semantics
-      // (0: "a click on the parents clone glyph will close the child") --
+      // The clone glyph stays live and keeps its own toggle semantics --
       // cloneOpenRequested() already closes it on a second press, same
       // outcome as the generic dismiss below, just via the control that
       // opened it rather than a blanket close.

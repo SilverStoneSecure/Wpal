@@ -10,36 +10,28 @@ Item {
   property var rects: []
   property color lineColor: Color.foreground
   // One label per rect (parallel to `rects`) -- the pane's own command/app
-  // name (0: "remove the numbers, replace with the command"), elided to
-  // fit. "" hides the label on that tile.
+  // name, elided to fit. "" hides the label on that tile.
   property var labels: []
   // Which rect (if any) is the designated full-screen pane: tinted/bordered
   // in fsColor instead of the plain cell style, and captioned "(fullscreen)"
-  // under its own command (0: "it should complement the comand/arg already
-  // there. same font, just place underneath"). -1 = none. Each li version
-  // (see CustomizeDialog) may add its OWN extra visual on top of this (a
-  // full-coverage "ghost", a corner ribbon, ...) -- this is just the shared
-  // baseline cell treatment.
+  // under its own command, same font, placed underneath. -1 = none. Each li
+  // version (see CustomizeDialog) may add its OWN extra visual on top of this
+  // (a full-coverage "ghost", a corner ribbon, ...) -- this is just the
+  // shared baseline cell treatment.
   property int fullscreenIndex: -1
-  // White, like every other tile outline here (0: "MAKE THE BORDER WHITE AND
-  // ROUNDED, LOSE THE SHITTY ORANGE BORDER") -- the full-screen pick is told
+  // White, like every other tile outline here -- the full-screen pick is told
   // apart by weight and its "(fullscreen)" caption, not by hue.
   property color fsColor: "#ffffff"
   // False when these launchers won't actually fire -- global Auto Launch off,
   // or this workspace's own checkbox unticked. The grid still draws either
-  // way (0 wants to see what IS configured), in a different theme hue from a
-  // live one: "change the hue/color of the AL overlay to a theme style
-  // different from the enabled ones ... it should cascade to the ones in the
-  // main panel when checked on and off". No colored TEXT is involved -- the
-  // words enabled/disabled live in li, unhued, per 0's "take away all hued
-  // text" rule.
+  // way, so what's configured stays visible, in a different theme hue from a
+  // live one; this cascades to the matching tiles on the main panel when
+  // toggled. No colored TEXT is involved -- the enabled/disabled wording in
+  // li stays unhued.
   property bool launchEnabled: true
-  // Global Auto Launch off, or this workspace's own off: the tiles go red
-  // (0: "IF A GLOBAL SWITH IS OFF Globally or AL IS off in a WS editor,
-  // change the tile overlay colors to that red"). Same soft red as the
-  // enabled/disabled labels.
-  // Back to a real red (0: "more reddish tc on the disabled auto launch
-  // previews"). It had been mixed 50% toward its own luminance grey
+  // Global Auto Launch off, or this workspace's own off: the tiles go red.
+  // Same soft red as the enabled/disabled labels.
+  // Back to a real red. It had been mixed 50% toward its own luminance grey
   // (#c19696) on an earlier "soften the red hue" pass, which left the blocked
   // tiles reading as dusty pink rather than as a warning. This is the same
   // #e08a8a the Auto Launch toggle wears when it is off, so the fill, the
@@ -48,27 +40,25 @@ Item {
   // The BORDER's own blocked colour. li keeps the softened fill hue above;
   // the main panel's cards pass the toggle's full red, so a glance down the
   // list says "auto launch is off" in exactly the colour the toggle is
-  // wearing (0: "the tile previews on the main panel should show on thier
-  // borders the same red as the togge button when auto launch is off").
+  // wearing.
   property color disabledBorderColor: root.disabledColor
   // The standing highlight on a tile that HAS a launcher set: white, heavier
   // than an empty tile's hairline, on li's preview and the main panel's cards
-  // alike (0: "make it appear on both previews if theres a pane set").
+  // alike.
   property color setColor: "#ffffff"
 
   // ---- drag state, driven by li's tile MouseAreas -----------------------
   //
   // A swap used to happen with no motion at all: the only thing that changed
-  // was a command NAME in two tiles, which nobody reads mid-gesture (0: "the
-  // cmd name change is not human user friendly, we need some tactile actions
-  // here"). So the tiles now behave like objects: press shrinks one, dragging
+  // was a command NAME in two tiles, which nobody reads mid-gesture. So the
+  // tiles now behave like objects: press shrinks one, dragging
   // carries it a little way (never far -- it must stay legible in its row),
   // and the tile it would land on shifts into the space it came out of. The
   // drop itself is silent: everything is simply drawn where it now belongs.
   // The tile that is "chosen" (held, or with the pointer on its grip). Every
   // OTHER tile then reads as a candidate in its own theme colour, so the set
-  // you can trade with is visible the moment you touch the grip (0: "change
-  // ALL tiles not chosen to a tc to a diff tc"). -1 = nothing chosen.
+  // you can trade with is visible the moment you touch the grip. -1 = nothing
+  // chosen.
   property int othersIndex: -1
   property int dragIndex: -1
   property real dragDX: 0
@@ -80,9 +70,8 @@ Item {
   // that cell's position AND size (cells are not all the same shape: "Main
   // left, three right" has a quarter-height one). It exists only because the
   // swap is written asynchronously; it holds the finished picture for the
-  // frame or two until the write lands, so nothing flips or slides afterwards
-  // (0: "just drop the thing, it fills the space its in, dont fn animate
-  // anything after that, just give me my mouse").
+  // frame or two until the write lands, so nothing flips or slides
+  // afterwards.
   property int landIndex: -1
   property var landRect: null
   // Whichever tile is out of its home right now -- held, or landing. The tile
@@ -91,21 +80,20 @@ Item {
   readonly property int dragSource: root.dragIndex >= 0 ? root.dragIndex : root.landIndex
   readonly property bool moving: root.dragIndex >= 0 || root.landIndex >= 0
   // li draws each tile's command at caption size; the main panel's cards are a
-  // fraction of that size, so they pass a smaller one and label the tiles with
-  // their launch ORDER instead (0: "on the Main Panel, it shows the tile order
-  // smaller, and on hover, shows the command set" -- the command is the card's
-  // per-tile hover, which WorkspaceCard already has).
+  // fraction of that size, so they pass a smaller one and label the tiles
+  // with their launch ORDER instead -- the command itself is the card's
+  // per-tile hover, which WorkspaceCard already has.
   property int labelPixelSize: Style.font.body
   // Which tile's command text is under the pointer right now, -1 for none.
   // li passes its grip slot; the main panel's cards pass nothing, so no pill
-  // is ever drawn there (0 asked for this on the li Editor).
+  // is ever drawn there.
   property int labelHotIndex: -1
   // "(fullscreen)" under the label doesn't fit on a card-sized thumbnail; the
   // tile's own tint and border still mark the pick there.
   property bool showFsCaption: true
-  // A flat label colour washes out over some wallpapers (0: "change color of
-  // cmd on lie to contrast its bg") -- same trap as the watermark numbers,
-  // same fix: a dark outline. Off by default so main's tiny per-tile order
+  // A flat label colour washes out over some wallpapers -- same trap as the
+  // watermark numbers, same fix: a dark outline. Off by default so main's
+  // tiny per-tile order
   // numbers are untouched; li turns it on for its command labels.
   property bool labelOutline: false
 
@@ -138,9 +126,8 @@ Item {
       readonly property bool displaced: dropTarget && !!dragRect && !landing
 
       // Cross the middle of another tile and THAT tile slides into the held
-      // one's empty space (0: "when the users pointer hits the middle of
-      // another tile, that tile animes to the dragged til ex space"). The
-      // held tile itself just nudges with the pointer.
+      // one's empty space. The held tile itself just nudges with the
+      // pointer.
       x: landing ? root.landRect[0] * root.width + 1
         : dragging ? homeX + root.dragDX
         : displaced ? dragRect[0] * root.width + 1 : homeX
@@ -149,19 +136,16 @@ Item {
         : displaced ? dragRect[1] * root.height + 1 : homeY
       // Only while a drag is LIVE. The moment it ends, dragIndex goes to -1,
       // these switch off and every tile is simply drawn where it now belongs
-      // -- no slide, no swap to watch (0: "ondrop, your doing a switch, its
-      // very odd, just drop each in to thier space ans shut up").
+      // -- no slide, no swap to watch.
       // ONLY while the pointer is still down. The frame the button is
       // released every Behavior here is dead, so the tile simply IS in the
-      // space it was over -- no grow, no glide, nothing to sit through
-      // (0: "just drop the thing, it fills the space its in, dont fn animate
-      // anything after that, just give me my mouse").
+      // space it was over -- no grow, no glide, nothing to sit through.
       Behavior on x { enabled: root.dragIndex >= 0 && !tile.dragging; NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
       Behavior on y { enabled: root.dragIndex >= 0 && !tile.dragging; NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-      // Three quarter size while it is held (0: "that tile shrinks 75%"), so
-      // the space it came out of reads as empty and the tile coming to fill
-      // it has somewhere to go. Everything else is drawn at 100%, including
+      // Three quarter size while it is held, so the space it came out of
+      // reads as empty and the tile coming to fill it has somewhere to go.
+      // Everything else is drawn at 100%, including
       // the instant the drag ends -- the held tile simply IS full size again.
       // Held: three quarters. Released: full size, that same frame.
       scale: dragging ? 0.75 : 1
@@ -182,16 +166,12 @@ Item {
       readonly property color dbc: root.disabledBorderColor
       readonly property color sc: root.setColor
       // A tile with something configured behind it is "set": it keeps the
-      // highlight permanently (0: "I want an active, set tile to have that
-      // border all the time, soften it to a theme color but it needes to be
-      // more pronounced"), rather than only while its config panel is open.
-      // An empty tile keeps the old hairline.
+      // highlight permanently, rather than only while its config panel is
+      // open. An empty tile keeps the old hairline.
       readonly property bool isSet: labelText !== ""
-      // A full-screen pane gets NO extra tile treatment any more (0: "if a
-      // pane is set to fullscreen, do not do anything else, just light up the
-      // icon more in the tile chosen, and place the text no other
-      // highlights") -- it reads as a set tile, plus its caption, plus the
-      // brighter logo li draws in it.
+      // A full-screen pane gets NO extra tile treatment any more -- it reads
+      // as a set tile, plus its caption, plus the brighter logo li draws in
+      // it.
       // Held tile in the accent, the tiles it could trade with in muted,
       // everything else as it was.
       color: dragging
@@ -204,16 +184,15 @@ Item {
       // Gated like the scale: the fill eases only while a drag is LIVE. On
       // release dragIndex is -1, so the held tile's accent and every
       // candidate's muted fill drop back instantly instead of fading out
-      // behind the drop (0: "ON MOUSE RELESE JUST DROP THE FUCKING THING").
+      // behind the drop.
       Behavior on color { enabled: root.dragIndex >= 0; ColorAnimation { duration: 120 } }
       // Rounded, like the preview and cards themselves.
       radius: Style.cornerRadius
       // Three weights: full-screen pick > set tile > empty slot. Hue never
       // carries the difference any more -- width, fill and the caption do.
       border.width: (dragging || candidate) ? 2 : (isSet ? 2 : 1)
-      // The tile you have hold of takes a theme colour of its own (0: "still
-      // do change the focused/clicked windows border to a diff theme color"),
-      // and a tile that has just been rearranged blends toward a second one.
+      // The tile you have hold of takes a theme colour of its own, and a tile
+      // that has just been rearranged blends toward a second one.
       border.color: dragging ? Color.accent
         : candidate ? Color.muted
         : !root.launchEnabled
@@ -238,16 +217,16 @@ Item {
           visible: parent.parent.labelText !== ""
           width: parent.width
           horizontalAlignment: Text.AlignHCenter
-          // Long commands wrap now instead of being cut off mid-word (0: "if
-          // a cmd title is too long line wrap it"). Three lines, then elide --
-          // a tile is a map of the screen, not a text box.
+          // Long commands wrap now instead of being cut off mid-word. Three
+          // lines, then elide -- a tile is a map of the screen, not a text
+          // box.
           wrapMode: Text.WrapAtWordBoundaryOrAnywhere
           maximumLineCount: 3
           elide: Text.ElideRight
           textFormat: Text.PlainText
           text: parent.parent.labelText
           // The command and its args take the accent while the pointer is on
-          // their grip (0: "on hover, change the color of the cmd and arg").
+          // their grip.
           color: tile.labelHot ? Color.accent : root.lineColor
           // Same dark-outline trick as the watermark numbers, gated off for
           // main (see labelOutline above).
@@ -256,8 +235,8 @@ Item {
           font.family: Style.font.family
           font.pixelSize: root.labelPixelSize
 
-          // THE GRIP ITSELF, drawn (0: "show its hitbox as a pill"). The
-          // hit box around the command text is invisible by design -- this is
+          // THE GRIP ITSELF, drawn. The hit box around the command text is
+          // invisible by design -- this is
           // the same rectangle, same maths as CustomizeDialog's `inkW`/`inkH`
           // (painted ink plus a hair, floored so one word is still grabbable,
           // capped at the tile), rounded all the way to a pill. On the dark

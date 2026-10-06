@@ -16,10 +16,10 @@ import "Model.js" as Model
 // is toggled off again, which also collapses any open dialog.
 //
 // Both surfaces use on-demand keyboard focus and an input mask covering only
-// their own visible card -- Chad wants this to behave like a HUD, not a
-// modal: it must not steal focus from whatever he's typing into, and clicks
-// outside the card should reach the window underneath rather than being
-// swallowed. That's also why neither surface reuses the shared
+// their own visible card -- designed to behave like a HUD, not a modal: it
+// must not steal focus from whatever's focused elsewhere, and clicks outside
+// the card should reach the window underneath rather than being swallowed.
+// That's also why neither surface reuses the shared
 // KeyboardPanel.qml base (which deliberately grabs keyboard focus and
 // dismisses on outside click for panels that need arrow-key navigation --
 // the opposite of what's wanted here).
@@ -91,10 +91,9 @@ Panel {
   // Panel CONTENT colour. The base's `barForeground` is the BAR's own
   // foreground: with a transparent bar it becomes a wallpaper-adaptive tone
   // (Bar.qml `useTransparentForeground`), which is right on the bar and wrong
-  // inside a popup. 0's bar IS transparent, so every built-in panel was
-  // drawing its content in the theme foreground while Wpal drifted with the
-  // wallpaper (0: "Match the font size and Color on Wpal to the other
-  // plugins"). Same definition the built-ins use for `contentForeground`.
+  // inside a popup. With a transparent bar, every built-in panel was drawing
+  // its content in the theme foreground while Wpal drifted with the
+  // wallpaper. Same definition the built-ins use for `contentForeground`.
   readonly property color contentForeground: root.bar ? root.bar.foreground : Color.foreground
   // Independent of wallpaper mode above -- a global kill switch for every
   // workspace's auto-launch panes, without discarding what's configured.
@@ -131,9 +130,8 @@ Panel {
   property real dialogAnchorY: 0
 
   // Every way into li comes through here, so this is where Global settings
-  // gets closed. They are never open at the same time (0: "if a line item
-  // gets clicked, global settings closes"), and no future caller has to
-  // remember to do it.
+  // gets closed. They are never open at the same time, and no future caller
+  // has to remember to do it.
   function openWorkspace(id, y) {
     activeWorkspace = id
     if (y !== undefined) root.dialogAnchorY = y
@@ -148,7 +146,7 @@ Panel {
   // Fixed width for the strip's always-visible mode row and (when
   // SilverStone Custom is on) the wallpaper-pool/auto-launch block beneath
   // it -- narrower than the old standalone Settings dialog (320) since this
-  // now lives inline in the strip and Chad wants it kept compact.
+  // now lives inline in the strip and is kept intentionally compact.
   // Widened back from 160: narrower text wraps onto more lines, which
   // inflates the strip's total content height and pushes it toward (or
   // past) getting clipped against the screen -- fitting fully on screen
@@ -165,8 +163,8 @@ Panel {
   // NOTE: the height budget below still subtracts the OLD lg gutter even
   // though the columns are on sm now. That is deliberate: feeding the freed
   // height back in would just make the cards bigger and leave the panel the
-  // same size, and 0 asked for a tighter PANEL (0: "tighten the panel as you
-  // can"). Keeping the old figure turns the saving into lost height instead.
+  // same size, and the panel is meant to stay as tight as possible. Keeping
+  // the old figure turns the saving into lost height instead.
   readonly property real cardsOtherOverhead: Style.space(192)
   readonly property real modeGlowPad: Style.space(8)
   readonly property real cardAvail: Math.max(Style.space(160),
@@ -174,9 +172,9 @@ Panel {
       - Style.spacing.lg * 4 - root.cardsOtherOverhead)
   readonly property real cardColK: 56 / 38 / 5
   // Widest column the screen HEIGHT allows (all ten cards fit without
-  // scrolling) -- the old panel width. 0 wants the panel narrower than that,
-  // so twoColColW is capped to panelTargetWidth; the height fit still wins on
-  // a short screen.
+  // scrolling) -- the old panel width. The panel is meant to be narrower than
+  // that, so twoColColW is capped to panelTargetWidth; the height fit still
+  // wins on a short screen.
   readonly property real twoColColWFit: Math.round((root.cardAvail * root.cardColK + Style.space(24)) / (1 + root.cardColK))
   readonly property real panelTargetWidth: Style.space(320)
   readonly property real twoColColW: Math.min(root.twoColColWFit, Math.floor((root.panelTargetWidth - Style.spacing.controlGap) / 2))
@@ -191,10 +189,9 @@ Panel {
   FontMetrics { id: modeLabelMetrics; font.family: Style.font.family; font.pixelSize: Style.font.body }
   readonly property real modeTileFullSize: root.twoColColWFit - root.modeGlowPad
   readonly property real modeLabelHeight: modeLabelMetrics.height * 4
-  // The tiles are pills now (0: "change the mode buttons to 'Omarchy' and
-  // 'SilverStone Wpal' pill them so they fill") -- one line of label plus
-  // padding, splitting the row's full width between them instead of two
-  // centered squares. The width math above is deliberately left alone: it
+  // The tiles are pills now -- one line of label plus padding, splitting the
+  // row's full width between them instead of two centered squares. The width
+  // math above is deliberately left alone: it
   // still solves against the old full-column square, so the panel keeps its
   // width and simply gets shorter.
   readonly property real modeTileHeight: Math.round(modeLabelMetrics.height + Style.spacing.sm * 2)
@@ -240,8 +237,7 @@ Panel {
   function closeDialog(viaEscape) {
     activeWorkspace = -1
     // Clear the mirrored intent too, or the next rebuild restores it and a
-    // card stays marked as "being edited" with no editor open (0: "one is
-    // always bordered, make it stop").
+    // card stays marked as "being edited" with no editor open.
     if (root.service) {
       root.service.activeWorkspaceIntent = -1
       root.service.expandedSlotIntent = -1
@@ -256,7 +252,7 @@ Panel {
   // Closing the Pane config panel, from Save, Enter, Escape or an outside
   // click. A
   // slot left with nothing in it is removed outright, so the launcher count
-  // drops back and "+" is what adds it again (0). Focus returns to li, which
+  // drops back and "+" is what adds it again. Focus returns to li, which
   // is what the next Escape should act on.
   function closeLauncherPanel() {
     var idx = workspaceContent.expandedSlot
@@ -286,7 +282,7 @@ Panel {
   // The Escape that closes li also reaches the strip the moment the strip
   // takes keyboard focus, which closed li AND the whole panel on one press.
   // The strip ignores Escape until this passes, so the cascade really is one
-  // level per press: Pane config -> li -> panel (0's sequence).
+  // level per press: Pane config -> li -> panel.
   property double escapeGuardUntil: 0
 
   function primeStripEscape() {
@@ -341,16 +337,14 @@ Panel {
   //
   // The strip opens under its bar icon. If that icon sits on the LEFT half of
   // the bar, li and everything hanging off it must unfold to the RIGHT, toward
-  // the centre (0: "if the plugin is placed on the left side of the bar,
-  // mirror its children to the right twords the centre") -- otherwise they
-  // march off the edge of the screen.
+  // the centre -- otherwise they march off the edge of the screen.
   readonly property bool openRight:
     (stripWin.anchorScreenPos.x + stripWin.anchorW / 2) < (stripWin.screenW / 2)
 
   // Place a child beside a reference rect, on the unfolding side, ALWAYS
   // clamped inside the screen. The clamp is the other half of the fix: the
   // picker had none and simply ran off the left edge once li was far enough
-  // over (0: "wallpaper picker is broken").
+  // over.
   function besideX(refX, refW, w) {
     var want = root.openRight ? (refX + refW + Style.gapsOut)
                               : (refX - w - Style.gapsOut)
@@ -383,9 +377,7 @@ Panel {
     if (root.pendingBrowse) { root.cancelBrowse(true); return }
     // li's side panels are layers over it: Escape peels them off first, the
     // launcher editor before Clone (it's the one being typed into), handing
-    // focus back to li each time so the next Escape lands there (0: "esc
-    // closes it as well, puts focus on the li editor esc again closes it and
-    // puts focus on the main panel, esc again closes it as well").
+    // focus back to li each time so the next Escape lands there.
     if (workspaceContent.expandedSlot >= 0) { root.closeLauncherPanel(); return }
     if (root.cloneDialogOpen) { root.closeClonePanel(); return }
     if (root.activeWorkspace >= 0) { root.closeDialog(true); return }
@@ -410,8 +402,7 @@ Panel {
     if (root.service) root.service.panelOpenIntent = root.opened
     // Pressing the bar glyph while anything of ours is open shuts the lot and
     // resets to first-open state -- no picker, no li, no launcher editor, no
-    // Clone waiting to reappear on the next press (0: "close the plugin and
-    // reset it to a fresh state, dont keep open child windows on a re press").
+    // Clone waiting to reappear on the next press.
     // closeDialog() clears li and its intents; the browse is ours to drop.
     if (!root.opened) { root.pendingBrowse = null; root.closeDialog() }
     // A "session" for Change Again is one panel-open: closing ends it. (A
@@ -420,15 +411,15 @@ Panel {
     if (!root.opened && root.service) root.service.randomizedOnce = false
     // Same session rule as randomizeRevealed: the clone line stays drawn
     // until the panel closes, then starts clean.
-    // The clone line's run is scoped to ONE panel-open (0: "no, it dies when
-    // the panel does"). It runs once while the panel is up and the finished
+    // The clone line's run is scoped to ONE panel-open. It runs once while
+    // the panel is up and the finished
     // line stays for as long as it is up; closing the panel spends it, and the
     // next open starts clean.
     if (!root.opened && root.service) root.service.cloneRevealed = false
     if (!root.opened) root.cursorWs = 0
 
-    // Join the bar's one-popout-at-a-time model, like every built-in panel
-    // (0 asked for it). The key is barIdentity -- the BAR WIDGET, not this
+    // Join the bar's one-popout-at-a-time model, like every built-in panel.
+    // The key is barIdentity -- the BAR WIDGET, not this
     // nested panel: the coordinator, the open-panel dot under the pill and
     // switchPanelFrom all identify a panel by the item mounted in the slot.
     // requestPopout closes whoever held it via closeForPopoutSwitch, which
@@ -494,10 +485,9 @@ Panel {
 
   // Tile rects for that workspace's chosen layout, [] when under 2 windows.
   // Counts what's CONFIGURED, not what's live: a workspace with Auto Launch
-  // ticked off still shows its grid on the card, just in the disabled hue
-  // (0: "it should cascade to the ones in the main panel when checked on and
-  // off"). Omarchy Default's lone card has no per-workspace config to show,
-  // so it stays bare.
+  // ticked off still shows its grid on the card, just in the disabled hue.
+  // Omarchy Default's lone card has no per-workspace config to show, so it
+  // stays bare.
   function launchRectsFor(id) {
     if (!root.masterEnabled) return []
     var n = Model.configuredCount(root.wsSetting(id).panes)
@@ -518,8 +508,8 @@ Panel {
   // by design.
   function launchFsIndexFor(id) {
     var cfg = root.wsSetting(id)
-    // ONE launcher is enough, matching li's own fsEligible (0: "a single AL
-    // should still show the Full screen option"). The old `< 2` gate meant a
+    // ONE launcher is enough, matching li's own fsEligible. The old `< 2`
+    // gate meant a
     // single-launcher workspace could press the toggle, save the pick, and
     // read it straight back as -1 -- the glyph never stayed lit and the
     // launch never went full screen.
@@ -602,7 +592,7 @@ Panel {
 
   // One of li's child panels (Pane config, Clone) is open. Two children can
   // never be open at once -- each opener closes the other -- and while either
-  // is up, neither li nor the strip takes clicks (0).
+  // is up, neither li nor the strip takes clicks.
   readonly property bool childPanelOpen: root.activeWorkspace > 0
     && (workspaceContent.expandedSlot >= 0 || root.cloneDialogOpen || root.pendingBrowse !== null)
 
@@ -630,11 +620,9 @@ Panel {
   // theme defaults, per Model.resolveWallpaperFolder) in one settings write
   // -- ten separate updateWorkspace calls would each trigger their own
   // widget-recreating settings write, flickering the panel ten times over.
-  // poolFolder here is each WORKSPACE'S OWN RAW value (0: "setting a custom
-  // background pool for a WS in the liE should be persistant... when I set
-  // global pool, all wallpapers randomize from the global pool that is set,
-  // NOT THE DEFAULT"). This used to hardcode root.poolFolder (the global
-  // pool) for all ten -- silently overwrote every custom-pool assignment.
+  // poolFolder here is each WORKSPACE'S OWN RAW value. This used to hardcode
+  // root.poolFolder (the global pool) for all ten -- silently overwrote
+  // every custom-pool assignment.
   // Fixed once already by preserving wsSetting()'s poolFolder instead --
   // WRONG, because wsSetting() routes through Model.normalizeBackground,
   // which does `bg.poolFolder || defaultFolder` and so NEVER returns empty.
@@ -706,9 +694,8 @@ Panel {
   // True only in the instant after a shuffle. The cards' fade-in cascade is
   // FOR the shuffle; on a mode switch every card is built from scratch and
   // the same onSourceChanged fired, so the whole list dribbled in over two
-  // seconds (0: "in were switching from omarchy mode to wpal, no animation,
-  // just write them all out at once"). The service outlives the settings
-  // write that rebuilds this panel, so the stamp survives to be read here.
+  // seconds. The service outlives the settings write that rebuilds this
+  // panel, so the stamp survives to be read here.
   readonly property bool shuffleJustRan: root.service
     && (Date.now() - root.service.shuffleAt) < 1500
 
@@ -716,18 +703,16 @@ Panel {
   // menu-images picker over the theme's backgrounds plus the user's own).
   // Detached: it draws its own window and outlives this panel.
   //
-  // 0: "the omarchy wallpaper picker does not change the wallpaper." Root
-  // cause: this just fired the external picker and threw away its result --
-  // omarchy-theme-bg-switcher only PRINTS the chosen path to stdout, it
-  // never applies anything itself (confirmed by reading it: it's a thin
-  // wrapper around omarchy-menu-images, which also just prints a selection).
-  // Omarchy's own built-in Background plugin wires this exact chain
-  // correctly (bgSwitchProc in
+  // Previously the picker's result was thrown away: this just fired the
+  // external picker and discarded its output -- omarchy-theme-bg-switcher
+  // only PRINTS the chosen path to stdout, it never applies anything itself
+  // (confirmed by reading it: it's a thin wrapper around omarchy-menu-images,
+  // which also just prints a selection). Omarchy's own built-in Background
+  // plugin wires this exact chain correctly (bgSwitchProc in
   // /usr/share/omarchy/shell/plugins/background/Background.qml): capture
   // the printed path and feed it into omarchy-theme-bg-set, which does the
   // symlink + live-apply IPC. shuffleDefaultWallpaper() above already does
-  // the equivalent for the shuffle action ("pick ... and save it as the
-  // global override (same as the picker)") -- this was the missing half.
+  // the equivalent for the shuffle action -- this was the missing half.
   function openOmarchyBackgroundPicker() {
     root.close()
     omarchyBgPicker.running = true
@@ -788,24 +773,21 @@ Panel {
   }
 
   // This workspace's own pool if it has one, else the global pool -- what
-  // "Set" browses and what a reroll draws from (0: "select a pool just for
-  // this workspace ... set opens the folder that the ...").
+  // "Set" browses and what a reroll draws from.
   function wsPoolFolder(id) {
     var f = root.wsSetting(id).background.poolFolder
     return f ? f : root.poolFolder
   }
 
-  // Trade two launchers' positions on the grid, full-screen pick included
-  // (0: "they just replace each other one for one and keep theyre full
-  // screen status").
+  // Trade two launchers' positions on the grid, full-screen pick included.
   function swapPanes(id, from, to) {
     var cur = root.wsSetting(id)
     var panes = cur.panes.map(function(p) { return Object.assign({}, p) })
     // A drop onto an EMPTY tile used to fall through here and do nothing at
     // all -- the layout can show four tiles while only two are configured, so
-    // `to` was routinely past the end (0: "a click and drag will move swap
-    // launch tile positions"). Dropping past the last configured launcher now
-    // means "put it last"; the slots stay strictly progressive either way.
+    // `to` was routinely past the end. Dropping past the last configured
+    // launcher now means "put it last"; the slots stay strictly progressive
+    // either way.
     if (from < 0 || to < 0 || from >= panes.length) return
     if (to >= panes.length) to = panes.length - 1
     if (from === to) return
@@ -855,8 +837,8 @@ Panel {
   // was internally inconsistent there, so the recompute -- and Omarchy's own
   // picker, which scans the same state -- both came up with nothing. Once
   // seeded, globalOverride behaves exactly as it already did: the Omarchy
-  // picker and Shuffle keep overwriting it normally (0: "continue from
-  // there"). Never touches a value that's already set, including one a user
+  // picker and Shuffle keep overwriting it normally. Never touches a value
+  // that's already set, including one a user
   // set on a previous run. Mirrors Service.qml's own
   // _bootBackgroundApplied/_applyBootBackgroundOnce gate, and self-heals the
   // same way defaultSnapshotRetryTimer below does: retry on a timer until
@@ -919,7 +901,7 @@ Panel {
 
   function beginBrowseImage(id, fromPool) {
     // The picker is a child of li like the other two, so it replaces them
-    // rather than stacking on top (0: "two children CANNOT BE OPEN").
+    // rather than stacking on top.
     workspaceContent.expandedSlot = -1
     root.cloneDialogOpen = false
     pendingBrowse = { kind: "image", workspaceId: id, fromPool: fromPool === true }
@@ -939,9 +921,8 @@ Panel {
 
   // viaEscape: the picker was the only thing open, so closing it hands the
   // keyboard straight back to the strip -- and the SAME Escape then closed the
-  // whole panel (0: "esc on a GWP falls to all panes closed, it should send
-  // focus to the main panel, not close the main panel"). primeStripEscape
-  // gives the strip focus behind a 400ms guard, exactly as closing li does; if
+  // whole panel. primeStripEscape gives the strip focus behind a 400ms guard,
+  // exactly as closing li does; if
   // li is still open underneath, focus goes back to li instead.
   function cancelBrowse(viaEscape) {
     pendingBrowse = null
@@ -1033,9 +1014,9 @@ Panel {
     // Prime with a brief Exclusive pulse on every open, then settle on
     // OnDemand -- the same pattern dialogWin below and the shared
     // KeyboardPanel.qml base use, and the reason every other Omarchy panel
-    // closes on Escape (0: "I want it to have the same behaviour to existing
-    // plugins"). Without the prime the strip never held keyboard focus unless
-    // Escape had just closed li, so Escape on the strip alone did nothing and
+    // closes on Escape. Without the prime the strip never held keyboard
+    // focus unless Escape had just closed li, so Escape on the strip alone
+    // did nothing and
     // the ✕ was the only way out. The ✕s are gone now, so Escape and the
     // outside click below ARE the way out -- don't regress this.
     //
@@ -1048,7 +1029,7 @@ Panel {
     // screen now: with the old card-only mask, focus dropped the instant the
     // prime settled and Escape had nothing to land on. Full-screen mask +
     // OnDemand + outside-click dismissal is the shared KeyboardPanel.qml
-    // bargain, and 0 chose it over card-only click-through.
+    // bargain, chosen over card-only click-through.
     property bool focusPrimed: false
     WlrLayershell.keyboardFocus: !root.opened
       ? WlrKeyboardFocus.None
@@ -1085,8 +1066,8 @@ Panel {
     readonly property real screenH: screen ? screen.height : 0
 
     // Where the bar button actually sits, so the card can open under it the
-    // way every built-in panel does (0: "make it open where it is, like
-    // omarchy") instead of being flush to the screen's right edge.
+    // way every built-in panel does, instead of being flush to the screen's
+    // right edge.
     //
     // mapToItem alone is a one-shot -- TransformWatcher re-evaluates it
     // whenever anything between the bar's contentItem and the button moves
@@ -1130,8 +1111,8 @@ Panel {
       height: stripWin.screenH
     }
 
-    // Outside-click dismissal, the same bargain every built-in panel makes
-    // (0 chose "full Omarchy parity" over card-only click-through). Declared
+    // Outside-click dismissal, the same bargain every built-in panel makes --
+    // full Omarchy parity, chosen over card-only click-through. Declared
     // before cardFrame so the card and its content always get the click
     // first; only what the card doesn't take reaches here.
     //
@@ -1202,13 +1183,11 @@ Panel {
     BorderSurface {
       id: cardFrame
       // Every tooltip inside this frame clamps itself to it -- SsToolTip
-      // walks up to this objectName (0: "CONSTRAIN ALL HOVERS TO THIER
-      // RESPECTIVE PANEL").
+      // walks up to this objectName.
       objectName: "ssPanelFrame"
       // Centred under the bar button and clamped inside the screen, exactly
       // the way KeyboardPanel.qml places its card. A vertical bar keeps the
-      // old edge placement -- the anchor's x means nothing there, and 0's
-      // bar is horizontal.
+      // old edge placement -- the anchor's x means nothing there.
       x: {
         if (stripWin.barPos === "left") return stripWin.barW + Style.gapsOut
         if (stripWin.barPos === "right") return stripWin.screenW - stripWin.barW - width - Style.gapsOut
@@ -1240,7 +1219,7 @@ Panel {
       clip: true
       color: Color.popups.background
       radius: Style.cornerRadius
-      // 140ms OutCubic, the same fade every built-in panel uses (0).
+      // 140ms OutCubic, the same fade every built-in panel uses.
       opacity: root.opened ? 1 : 0
       Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
@@ -1260,8 +1239,8 @@ Panel {
         if (Date.now() < root.escapeGuardUntil) return
         // The strip holds keyboard focus whenever the pointer is over it,
         // even with a picker open on top -- so Escape often landed HERE and
-        // closed the lot (0: "esc on the WP closes the Whole stach"). Peel
-        // one level from the strip too: same cascade, same order, whichever
+        // closed the lot. Peel one level from the strip too: same cascade,
+        // same order, whichever
         // surface the key reaches.
         root.dismissOneLevel()
       }
@@ -1280,11 +1259,9 @@ Panel {
       // instead of getting clipped off and lost (clip: true above was only
       // ever a last-resort safety net, not the real fix for that).
       // While one of li's child panels is open, a click on the strip closes
-      // it (0: "if I click on a parent panel, it should close a child") --
-      // supersedes the old rule where this just ate the click and did
-      // nothing ("a user cant click on the main panel if a line item child
-      // is open as well"). Declared before the Flickable so it can sit above
-      // it, below.
+      // it -- supersedes the old rule where this just ate the click and did
+      // nothing. Declared before the Flickable so it can sit above it,
+      // below.
       MouseArea {
         anchors.fill: parent
         z: 10
@@ -1316,17 +1293,15 @@ Panel {
         Item {
           width: root.settingsWidth
           implicitHeight: childrenRect.height
-          // Tag 1 retired: the title row sits against the frame, so its badge
-          // was clipped down to a stray dash above the glyph (0: "above the
-          // first glyph theres an artifact lose it"). 1a/1b carry the row.
+          // The title row sits against the frame, so a badge that used to sit
+          // above the glyph was clipped down to a stray dash; removed.
           RowLayout {
             width: root.settingsWidth
             spacing: Style.spacing.sm
 
-            // Double-sized SilverStone mark left of the title (0: "add a double
-            // sizid silverstone icon to beside the main panel title bar on the
-            // left"). Same glyph as the bar icon; li and the launcher-config
-            // panel carry it too, so every panel title reads the same way.
+            // Double-sized SilverStone mark left of the title. Same glyph as
+            // the bar icon; li and the launcher-config panel carry it too, so
+            // every panel title reads the same way.
             Text {
               Layout.alignment: Qt.AlignVCenter
               textFormat: Text.PlainText
@@ -1341,7 +1316,7 @@ Panel {
               text: "Wpal"
               color: root.contentForeground
               font.family: Style.font.family
-              // Same heading size as li, the picker and the launcher panel (0).
+              // Same heading size as li, the picker and the launcher panel.
               font.pixelSize: Style.font.heading
               font.bold: true
               Layout.fillWidth: true
@@ -1354,18 +1329,15 @@ Panel {
           foreground: root.contentForeground
         }
 
-        // Section title, left-aligned above the buttons (0: "add a Title
-        // above left \"Mode\""). PanelSectionHeader is the same component the
-        // built-in panels label a section with, so it comes out dimmed and
-        // bold at the native size rather than as another big heading.
+        // Section title, left-aligned above the buttons. PanelSectionHeader
+        // is the same component the built-in panels label a section with, so
+        // it comes out dimmed and bold at the native size rather than as
+        // another big heading.
         PanelSectionHeader {
           text: "Mode"
-          // One step up the scale from PanelSectionHeader's caption default
-          // (0: "inc font for workspaces and mode +1").
+          // One step up the scale from PanelSectionHeader's caption default.
           fontSize: Style.font.bodySmall
           foreground: root.contentForeground
-          // below: 1a's own below-badge owns the band above this, and the
-          // header is too short for atRight to clear it.
         }
 
         // Mode buttons: two rounded rects filling the row. Selected one is
@@ -1378,18 +1350,16 @@ Panel {
             spacing: Style.spacing.sm
 
             // The shared Ui/Button, configured exactly like the agents
-            // panel's provider pair (0: "make the Mode Buttons act exactly
-            // like the CC buttons. clicks and all") -- so press/hover/selected
-            // states, focus ring and click feel are the built-in ones rather
-            // than a hand-rolled lookalike. The old Rectangles carried their
+            // panel's provider pair -- so press/hover/selected states, focus
+            // ring and click feel are the built-in ones rather than a
+            // hand-rolled lookalike. The old Rectangles carried their
             // own MouseArea, fill maths and a TileGlow pulse; CC's buttons
             // have no glow, so that went with them.
             //
             // Equal halves, like the agents Repeater's cellWidth.
             Button {
               id: defaultModeButton
-              // HALF THE ROW EACH (0: "mode buttons should share the panel,
-              // they can centre in thier pill"). `fillWidth` alone hands each
+              // HALF THE ROW EACH. `fillWidth` alone hands each
               // button its own text width first and only shares out the
               // SURPLUS, so "Omarchy" came out wider than "Wpal". Zeroing the
               // preferred width makes the split even and lets each label
@@ -1403,12 +1373,10 @@ Panel {
               fontFamily: Style.font.family
               fontSize: Style.font.bodySmall
               verticalPadding: Style.spacing.controlPaddingY
-              // No hover text on the mode you are already in (0: "if the mode
-              // is in a state, remove its hover") -- it would only describe
-              // where you already are.
+              // No hover text on the mode you are already in -- it would only
+              // describe where you already are.
               // SsToolTip everywhere now, so every hover is clamped to its
-              // own panel (0: "CONSTRAIN ALL HOVERS TO THIER RESPECTIVE
-              // PANEL"). Still nothing on the mode you are already in.
+              // own panel. Still nothing on the mode you are already in.
               SsToolTip {
                 visible: defaultModeButton.hot && !defaultModeButton.selected
                 text: "Hand the Background back\nto your Omarchy theme"
@@ -1428,8 +1396,7 @@ Panel {
               fontFamily: Style.font.family
               fontSize: Style.font.bodySmall
               verticalPadding: Style.spacing.controlPaddingY
-              // Back to the original rule, same as "Omarchy" above (0: "remove
-              // the goodness hover over on the mode button Wpal") -- no hover
+              // Back to the original rule, same as "Omarchy" above -- no hover
               // text on the mode you're already in.
               SsToolTip {
                 visible: silverstoneModeButton.hot && !silverstoneModeButton.selected
@@ -1442,24 +1409,17 @@ Panel {
         }
 
         // The old inline "Global Wallpaper Pool" block (separator, header,
-        // path TextField + Browse -- tags 6/7/8a/8b) lived here and is GONE:
-        // opening it grew the strip downward. The "..." opens the picker as a
-        // popup instead. Those four tags are retired. It used to have its own
-        // row here, right-justified above the shuffle button; now it sits
-        // beside the shuffle button in the WorkSpaces heading row below,
-        // just to its left (0: "drop the ... on main to just left of the
-        // recycle button").
+        // path TextField + Browse) lived here and is GONE: opening it grew
+        // the strip downward. The "..." opens the picker as a popup instead.
+        // It used to have its own row here, right-justified above the
+        // shuffle button; now it sits beside the shuffle button in the
+        // WorkSpaces heading row below, just to its left.
 
-        // Heading for the card list (0: "add a Label to Above the list items:
-        // 'WorkSpaces'"), with the Randomize cluster directly under it and the
-        // cards below that (0: "place randomize all at the top of the ... below
-        // that the Randomize cluster").
+        // Heading for the card list, with the Randomize cluster directly
+        // under it and the cards below that.
         // The heading and the shuffle button share ONE row now -- heading
-        // left, button hard right (0: "put 11c right justified In the
-        // Workspaces row"). The standalone randomize row that used to sit
-        // under it is gone, and with it tag 11: the row's two members carry
-        // their own tags (10 and 11c), and a container badge here would land
-        // on top of 11c's at the right edge.
+        // left, button hard right. The standalone randomize row that used to
+        // sit under it is gone.
         Item {
           visible: root.masterEnabled
           width: root.settingsWidth
@@ -1471,9 +1431,8 @@ Panel {
             spacing: Style.spacing.sm
 
             // Was a heading-size bold Text; now the same PanelSectionHeader
-            // that labels "Mode" and "Global Wallpaper Pool:" (0: "change the
-            // inconsistencies"). This supersedes the earlier "bump WorkSpaces
-            // to heading size" ask -- one idiom for section labels won.
+            // that labels "Mode" and "Global Wallpaper Pool:" -- one idiom
+            // for section labels.
             PanelSectionHeader {
               Layout.alignment: Qt.AlignVCenter
               text: "WorkSpaces"
@@ -1483,9 +1442,8 @@ Panel {
 
             Item { Layout.fillWidth: true }
 
-            // The global pool control, moved in beside the shuffle button
-            // (0: "drop the ... on main to just left of the recycle
-            // button") -- used to sit right-justified in its own row above.
+            // The global pool control, moved in beside the shuffle button --
+            // used to sit right-justified in its own row above.
             Text {
               id: globalDots
               Layout.alignment: Qt.AlignVCenter
@@ -1523,11 +1481,10 @@ Panel {
               id: shuffleButton
               Layout.alignment: Qt.AlignVCenter
               // Omarchy's own bar update icon, same glyph the SystemUpdate bar
-              // widget uses (0: "change to omarchys update icon on the bar").
+              // widget uses.
               iconText: "\uf021"
               foreground: root.contentForeground
-              // No hover tint (0: "not change color on mousover") -- the spin
-              // is the only feedback.
+              // No hover tint -- the spin is the only feedback.
               hoverColor: root.contentForeground
               property bool tipOn: false
               onHovered: function(isHovered) { shuffleButton.tipOn = isHovered }
@@ -1537,7 +1494,7 @@ Panel {
                 shuffleSpin.restart()
               }
 
-              // One turn per press (0: "run only once").
+              // One turn per press.
               RotationAnimation {
                 id: shuffleSpin
                 target: shuffleButton
@@ -1591,8 +1548,7 @@ Panel {
               // ~2s spread across the ten cards, in list order.
               staggerMs: root.shuffleJustRan ? (modelData === 10 ? 9 : modelData - 1) * 200 : 0
               // Omarchy Default's lone card stands for the whole desktop's
-              // wallpaper, not workspace 1's -- so it carries no number
-              // (0: "lose the 1 for workspace 1 on the default mode").
+              // wallpaper, not workspace 1's -- so it carries no number.
               showNumber: root.masterEnabled
               fullWidth: Math.floor((root.settingsWidth - (cardsHost.cardCols - 1) * Style.spacing.controlGap) / cardsHost.cardCols)
               maxCardH: cardsHost.fitCardH
@@ -1603,9 +1559,8 @@ Panel {
               launchEnabled: root.launchEnabledFor(modelData)
               launchFsIndex: root.launchFsIndexFor(modelData)
               // Omarchy Default has no auto-launch at all, so its lone card
-              // gets no tiles and no hover (0: "the Default Mode has a
-              // border, lose it, its got no AL assigned"). Custom mode passes
-              // the real panes.
+              // gets no tiles and no hover. Custom mode passes the real
+              // panes.
               panes: root.masterEnabled ? root.wsSetting(modelData).panes : []
               active: root.activeWorkspace === modelData
               summaryText: root.workspaceSummary(modelData)
@@ -1625,10 +1580,8 @@ Panel {
                   return
                 }
                 // Omarchy Default mode is Omarchy's wallpaper, so the click
-                // hands over to OMARCHY'S OWN picker rather than ours (0:
-                // "open the omarchy system background picker on click of the
-                // preview"). Our picker is for Wpal's per-workspace
-                // backgrounds.
+                // hands over to OMARCHY'S OWN picker rather than ours. Our
+                // picker is for Wpal's per-workspace backgrounds.
                 if (root.pendingBrowse) root.cancelBrowse()
                 root.openOmarchyBackgroundPicker()
               }
@@ -1641,9 +1594,8 @@ Panel {
             spacing: Style.spacing.sm
 
             Column {
-              // Tightened from lg (0: "tighten the panel as you can") -- the
-              // cards carry their own borders, so the wide gutter between
-              // them was pure height.
+              // Tightened from lg -- the cards carry their own borders, so
+              // the wide gutter between them was pure height.
               spacing: Style.spacing.sm
               Repeater {
                 model: root.masterEnabled ? [1, 2, 3, 4, 5] : [1]
@@ -1660,7 +1612,7 @@ Panel {
           }
         }
 
-        // Global Auto Launch, delimited off on its own (0).
+        // Global Auto Launch, delimited off on its own.
         PanelSeparator {
           visible: root.masterEnabled
           width: root.settingsWidth
@@ -1681,58 +1633,51 @@ Panel {
             spacing: Style.spacing.sm
 
             // Label and toggle are ONE cluster on the left; the glyph is on
-            // its own at the right edge (0: "Cluster the Fucking text and the
-            // toggle together, and put them on the left, put the glyph to the
-            // right"). No fillWidth on the label any more -- that is what was
-            // stretching it into a wrapped block between the two.
+            // its own at the right edge. No fillWidth on the label any more
+            // -- that is what was stretching it into a wrapped block between
+            // the two.
             Text {
               Layout.alignment: Qt.AlignVCenter
               textFormat: Text.PlainText
               // "Global" is back, on its own line, so the string is narrow
               // enough not to push the Clear glyph past the panel border --
-              // which is why it was dropped in the first place (0: "the label
-              // on the auto launch should read 'Global\n AutoLaunch'"). The
+              // which is why it was dropped in the first place. The
               // enabled/disabled words are gone with it: the toggle beside it
               // says that, in its own red.
               horizontalAlignment: Text.AlignLeft
               text: "Global\nAutoLaunch"
-              // Soft tint when on, soft red when off (0).
-              // Same treatment as li's (0: "do global too") -- white on,
-              // greyed off, never red; the toggle keeps its red.
+              // Soft tint when on, soft red when off.
+              // Same treatment as li's -- white on, greyed off, never red;
+              // the toggle keeps its red.
               color: root.autoLaunchEnabled ? root.contentForeground : Qt.darker(root.contentForeground, 1.9)
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               wrapMode: Text.WordWrap
             }
 
-            // Wipes every workspace's launchers in one write (0: "we need a
-            // Clear all Launchers button ... put it down with the glolbal
-            // launcher same line"). Only offered while there is something to
-            // clear, and it leaves the Auto Launch switches exactly as they
-            // are -- it empties the slots, it does not turn anything off.
+            // Wipes every workspace's launchers in one write. Only offered
+            // while there is something to clear, and it leaves the Auto
+            // Launch switches exactly as they are -- it empties the slots,
+            // it does not turn anything off.
             ToggleSwitch {
               id: autoLaunchToggle
               checked: root.autoLaunchEnabled
               // Off reads in the same red the tiles use when auto launch is
-              // blocked (0: "color the auto launch toggle buttons the same red as
-              // the tile outline when blocking"); on is untouched.
+              // blocked; on is untouched.
               foreground: root.autoLaunchEnabled ? Color.foreground : "#e08a8a"
               onToggled: root.setAutoLaunchEnabled(!root.autoLaunchEnabled)
             }
 
             // One spacer now: the label+toggle cluster sits left, the glyph
             // right, and the rule is NOT in this row any more -- it is drawn
-            // over it, on the row's own centre line (0: "place the divider in
-            // the middle"). Two fillWidth spacers put it in the middle of the
-            // LEFTOVER space, which is not the middle of the row once the
-            // cluster is wider than the glyph.
+            // over it, on the row's own centre line. Two fillWidth spacers
+            // put it in the middle of the LEFTOVER space, which is not the
+            // middle of the row once the cluster is wider than the glyph.
             Item { Layout.fillWidth: true }
 
-            // Wipes every workspace's launchers in one write (0: "we need a
-            // Clear all Launchers button ... put it down with the glolbal
-            // launcher same line"). A GLYPH, not the words: the text button
-            // wrapped the label into four lines. In the theme accent at rest
-            // (0: "change it to a theme color"), red only on hover, like every
+            // Wipes every workspace's launchers in one write. A GLYPH, not
+            // the words: the text button wrapped the label into four lines.
+            // In the theme accent at rest, red only on hover, like every
             // destructive control in the shell.
             PanelActionButton {
               id: clearLaunchersButton
@@ -1740,15 +1685,13 @@ Panel {
               // Never let the row squeeze it to nothing.
               Layout.minimumWidth: implicitWidth
               Layout.preferredWidth: implicitWidth
-              // Always on the row, not only when something is set (0: "the
-              // glyph is gone, place it in the bottom right corner"). It sits
+              // Always on the row, not only when something is set. It sits
               // in the panel's bottom-right corner, which is where this row
               // ends. Dimmed when there is nothing to clear.
               enabled: root.anyLaunchersSet
               opacity: root.anyLaunchersSet ? 1 : 0.45
-              // As tall as the toggle it shares the row with (0: "inc size of
-              // the main panel clear launchers glyph to match the height of
-              // the toggle bar"); the glyph itself grows with it.
+              // As tall as the toggle it shares the row with; the glyph
+              // itself grows with it.
               size: autoLaunchToggle.implicitHeight
               fontSize: Style.font.iconLarge
               iconText: "\uf1f8"
@@ -1782,9 +1725,8 @@ Panel {
 
           // The divider, on the ROW's centre line rather than inside it: a
           // vertical twin of PanelSeparator, 1px, three quarters of the
-          // toggle's height (0: "shorten the last delimiter to 75% still
-          // centered"), drawn over the row so the layout's spacing maths does
-          // not get a say in where it lands.
+          // toggle's height, drawn over the row so the layout's spacing
+          // maths does not get a say in where it lands.
           Rectangle {
             x: Math.round(globalAlRow.width / 2)
             y: globalAlRow.y + Math.round((globalAlRow.height - height) / 2)
@@ -1796,10 +1738,9 @@ Panel {
           }
         }
 
-        // The closing separator under Global Auto Launch is GONE (0: "remove
-        // the delmiter from the bottom of the MP") -- the panel's own border
-        // is the bottom edge, so it was a line drawn against a line. Tag 15
-        // is retired with it; don't renumber around the gap.
+        // The closing separator under Global Auto Launch is GONE -- the
+        // panel's own border is the bottom edge, so it was a line drawn
+        // against a line.
       }
       } // end Flickable (stripFlick)
     }
@@ -1817,9 +1758,8 @@ Panel {
     // the global pool browse (beginBrowsePool) opens with no workspace active
     // at all.
     visible: root.opened && (root.activeWorkspace > 0 || root.pendingBrowse !== null)
-    // The launcher-config panel sits to LI's LEFT (0: "the config for the AL
-    // will popup to the LEFT of its parent the li editor") -- the same side
-    // the browse picker uses, so li itself no longer has to move.
+    // The launcher-config panel sits to LI's LEFT -- the same side the
+    // browse picker uses, so li itself no longer has to move.
     readonly property bool launcherOpen: root.activeWorkspace > 0 && workspaceContent.expandedSlot >= 0
     screen: stripWin.screen
     color: "transparent"
@@ -1859,7 +1799,7 @@ Panel {
     // One bounding mask over whichever of the two frames are actually
     // showing -- li alone, picker alone (the global pool browse, no li to
     // sit beside), or both side by side (picker opened from li: it sits to
-    // LI's left rather than covering it, per 0 -- covering it was confusing).
+    // LI's left rather than covering it -- covering it was confusing).
     readonly property real maskLeft: Math.min(dialogFrame.visible ? dialogFrame.x : Infinity, pickerFrame.visible ? pickerFrame.x : Infinity,
       launcherFrame.visible ? launcherFrame.x : Infinity, cloneFrame.visible ? cloneFrame.x : Infinity)
     readonly property real maskTop: Math.min(dialogFrame.visible ? dialogFrame.y : Infinity, pickerFrame.visible ? pickerFrame.y : Infinity,
@@ -1889,25 +1829,22 @@ Panel {
     BorderSurface {
       id: dialogFrame
       // Every tooltip inside this frame clamps itself to it -- SsToolTip
-      // walks up to this objectName (0: "CONSTRAIN ALL HOVERS TO THIER
-      // RESPECTIVE PANEL").
+      // walks up to this objectName.
       objectName: "ssPanelFrame"
       visible: root.activeWorkspace > 0
       // It does not depend on the content height, so toggling Auto Launch or
       // adding a launcher only grows it downward.
       x: root.besideX(cardFrame.x, cardFrame.width, width)
-      // ALWAYS vertically centred on the main panel, whichever card opened it
-      // (0: "just have the li editor open in the midddle vertically of the
-      // main panel every time, no more close to the li item"). It used to
-      // track the clicked card's midpoint via `root.dialogAnchorY`, and
-      // re-anchor whenever a different card was picked; both are gone. The
-      // anchor value is still carried by openWorkspace() for the cursor work
-      // that reads it, it just no longer places this panel.
+      // ALWAYS vertically centred on the main panel, whichever card opened
+      // it. It used to track the clicked card's midpoint via
+      // `root.dialogAnchorY`, and re-anchor whenever a different card was
+      // picked; both are gone. The anchor value is still carried by
+      // openWorkspace() for the cursor work that reads it, it just no longer
+      // places this panel.
       //
       // Still PINNED on open: the centring maths depends on `height`, so
-      // anything that changed li's height would slide the whole panel
-      // (0: "theres a panel thrash when a second AL is added"). The y is
-      // taken once, when li opens, and growth runs downward off a fixed top
+      // anything that changed li's height would slide the whole panel. The y
+      // is taken once, when li opens, and growth runs downward off a fixed top
       // edge. Clamped so it never rides over the bar or off the bottom.
       readonly property real wantY: Math.max(cardFrame.topClear,
         Math.min(cardFrame.y + cardFrame.height / 2 - height / 2,
@@ -1932,10 +1869,10 @@ Panel {
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       focus: true
       Keys.onEscapePressed: root.escapePressed()
-      // Every edit here writes straight through to settings as it happens
-      // (0: "enter acts like save when...", same rule AutoLaunchConfig
-      // already follows) -- there's nothing staged for Enter to commit, so
-      // closing li is the whole of "Save" here. Same cascade as Escape: if
+      // Every edit here writes straight through to settings as it happens,
+      // same rule AutoLaunchConfig already follows -- there's nothing staged
+      // for Enter to commit, so closing li is the whole of "Save" here. Same
+      // cascade as Escape: if
       // a child panel (launcher editor, clone) is layered on top, THAT
       // frame has focus instead and handles its own Enter first.
       Keys.onReturnPressed: root.escapePressed()
@@ -1957,8 +1894,7 @@ Panel {
         onExpandedSlotChanged: if (root.service) root.service.expandedSlotIntent = workspaceContent.expandedSlot
         onFsSlotRequested: function(idx) { root.updateWorkspace(root.activeWorkspace, { fullScreenIndex: idx }) }
         onPoolPickRequested: {
-          // Second click closes it again (0: "if the browse is clicked twice,
-          // it closes its picker").
+          // Second click closes it again.
           if (root.pendingBrowse && root.pendingBrowse.kind === "wsPool") { root.cancelBrowse(); return }
           root.beginBrowseWsPool(root.activeWorkspace)
         }
@@ -1973,7 +1909,7 @@ Panel {
           root.cloneDialogOpen = !root.cloneDialogOpen
         }
         onEditLauncherRequested: {
-          // Only ever one child of li at a time (0) -- including the picker,
+          // Only ever one child of li at a time -- including the picker,
           // which shares the same slot to li's left.
           root.cloneDialogOpen = false
           if (root.pendingBrowse) root.cancelBrowse()
@@ -1985,10 +1921,9 @@ Panel {
         // button -- both route here) while this exact browse is already
         // open closes it again, no changes, instead of re-opening.
         // ANY open picker closes on a preview click, whatever opened it and
-        // whichever half of li was pressed (0: "if I click on the preview
-        // pane on the li when the WP is open, close the WP"). It used to
-        // toggle only against an identical browse, so a pool picker sat
-        // there while an image click quietly replaced it.
+        // whichever half of li was pressed. It used to toggle only against
+        // an identical browse, so a pool picker sat there while an image
+        // click quietly replaced it.
         onBrowseImageRequested: {
           if (root.pendingBrowse) { root.cancelBrowse(); return }
           root.beginBrowseImage(root.activeWorkspace, false)
@@ -2013,14 +1948,11 @@ Panel {
     BorderSurface {
       id: launcherFrame
       // Every tooltip inside this frame clamps itself to it -- SsToolTip
-      // walks up to this objectName (0: "CONSTRAIN ALL HOVERS TO THIER
-      // RESPECTIVE PANEL").
+      // walks up to this objectName.
       objectName: "ssPanelFrame"
       visible: dialogWin.launcherOpen
       // Back to li's LEFT, vertically centred on it, shrink-wrapped to its own
-      // content (0: "put the AL Config back to the left centre of the li
-      // Editor like it was before, it expands below the panel, its horrible").
-      // Filling down to the main panel's bottom is gone.
+      // content. Filling down to the main panel's bottom is gone.
       //
       // frameH is the height computed as its OWN property rather than read
       // back out of `height` inside the binding that defines height -- that
@@ -2063,16 +1995,14 @@ Panel {
     }
 
     // Clone, opened from the arrow control at li's bottom-left and sitting
-    // right beside it (0: "make it close to the button that launched it").
+    // right beside it.
     BorderSurface {
       id: cloneFrame
       // Every tooltip inside this frame clamps itself to it -- SsToolTip
-      // walks up to this objectName (0: "CONSTRAIN ALL HOVERS TO THIER
-      // RESPECTIVE PANEL").
+      // walks up to this objectName.
       objectName: "ssPanelFrame"
       visible: root.activeWorkspace > 0 && root.cloneDialogOpen
-      // Directly under li and the same width (0: "have the clone workspace
-      // diag to below its parent matching width").
+      // Directly under li and the same width.
       x: dialogFrame.x
       // Same independent height as the launcher frame above, for the same
       // reason -- the cloner's content is short so it never showed, but the
@@ -2109,8 +2039,7 @@ Panel {
     BorderSurface {
       id: pickerFrame
       // Every tooltip inside this frame clamps itself to it -- SsToolTip
-      // walks up to this objectName (0: "CONSTRAIN ALL HOVERS TO THIER
-      // RESPECTIVE PANEL").
+      // walks up to this objectName.
       objectName: "ssPanelFrame"
       visible: root.pendingBrowse !== null
       // Beside li (to its LEFT -- li is its parent here) when li's open for
@@ -2119,20 +2048,19 @@ Panel {
       // since there's no li to sit beside.
       x: dialogFrame.visible ? root.besideX(dialogFrame.x, dialogFrame.width, width)
         : root.besideX(cardFrame.x, cardFrame.width, width)
-      // Level with li's preview image rather than li's top edge (0: "INLINE
-      // with the previews level"), then clamped to the screen: never above
-      // the bar, never past the bottom. A picker taller than what's left
-      // below the preview gets pushed up rather than running off.
+      // Level with li's preview image rather than li's top edge, then
+      // clamped to the screen: never above the bar, never past the bottom. A
+      // picker taller than what's left below the preview gets pushed up
+      // rather than running off.
       // Opens next to whatever summoned it. For the global pool that is the
       // "..." itself, so line up with the dots rather than the top of the
-      // screen (0: "it opens close to the ... itself"). globalDots lives in
-      // stripWin, but both windows overlay the same output, so mapping it
-      // into cardFrame and adding cardFrame.y gives a comparable y.
+      // screen. globalDots lives in stripWin, but both windows overlay the
+      // same output, so mapping it into cardFrame and adding cardFrame.y
+      // gives a comparable y.
       readonly property real preferredY: dialogFrame.visible
         ? dialogFrame.y + dialogFrame.height / 2 - height / 2
-        // Flush with the main panel's own top edge, not a few pixels off it
-        // (0: "the standard picker is a few pixels off the main panel, make
-        // them even"). cardFrame.y IS that edge; topClear was the margin.
+        // Flush with the main panel's own top edge, not a few pixels off it.
+        // cardFrame.y IS that edge; topClear was the margin.
         : cardFrame.y
       y: Math.max(cardFrame.topClear,
         Math.min(preferredY, dialogWin.screenH - Style.gapsOut - height))
@@ -2143,9 +2071,8 @@ Panel {
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
       focus: true
       Keys.onEscapePressed: root.escapePressed()
-      // No keyboard path into the picker at all before this (0: "allow in
-      // the fuzzy picker that a user can use the arrow buttons, and enter to
-      // select") -- mouse-only throughout. Same shape as cloneFrame's own
+      // No keyboard path into the picker at all before this -- mouse-only
+      // throughout. Same shape as cloneFrame's own
       // Keys.onReturnPressed below: the frame owns the key, the content owns
       // what it means.
       Keys.onUpPressed: browsePicker.moveSelection(0, -1)
@@ -2186,11 +2113,9 @@ Panel {
           root.cancelBrowse()
         }
         onCancelled: root.cancelBrowse()
-        // Both resets moved in here from li's own settings row (0: "move the
-        // Global Button out of LIE and into the picker... add a revert to
-        // default button to the picker"). workspaceId is already the
-        // resolved wsPool target above, so it's reused as-is rather than
-        // re-deriving it from pendingBrowse a second time.
+        // Both resets moved in here from li's own settings row. workspaceId
+        // is already the resolved wsPool target above, so it's reused as-is
+        // rather than re-deriving it from pendingBrowse a second time.
         onPoolResetRequested: root.clearWsPool(browsePicker.workspaceId)
         // Resets the pool SELECTION back to the omarchy theme's own
         // backgrounds folder (Model.resolveWallpaperFolder's fallback for a
@@ -2200,8 +2125,9 @@ Panel {
         // poolFolder lands as "" and Service.cascadePoolChange rerolls every
         // workspace with no override of its own) -- what was actually broken
         // is that this open picker's own `folder` was a one-shot assignment
-        // from beginBrowsePool(), never refreshed after the click, so 0 saw
-        // no visible change and reported "does nothing." Compute the default
+        // from beginBrowsePool(), never refreshed after the click, so no
+        // visible change happened and it looked like it did nothing. Compute
+        // the default
         // folder directly rather than reading root.poolFolder right back --
         // that property is fed by the same async settings round-trip as the
         // write itself (see trap 2 above), so it can still read the OLD
