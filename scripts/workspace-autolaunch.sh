@@ -99,6 +99,13 @@ desktop_exec() {
     | sed -E 's/%[a-zA-Z]//g; s/[[:space:]]+$//'
 }
 
+# Whether the .desktop declares Terminal=true -- a console-only app (e.g.
+# cliamp, a TUI music player) that expects the display environment to give it
+# a real terminal/pty, not just run its Exec line headless.
+desktop_wants_terminal() {
+  awk -F= '/^\[Desktop Entry\]/{g=1;next} /^\[/{g=0} g && $1=="Terminal"{print tolower($2); exit}' "$1"
+}
+
 # A webapp .desktop's own URL, pulled out with a plain regex instead of
 # word-splitting its Exec line -- the Exec value may quote the URL
 # ("https://...") to protect it, and quotes inside an already-expanded shell
@@ -163,6 +170,15 @@ launch_app() {
     return
   fi
   if [[ -n ${exec_line:-} ]]; then
+    # Console-only apps (Terminal=true, e.g. cliamp) get /dev/null for stdio
+    # here same as everything else -- with no pty at all, they die immediately
+    # (confirmed: cliamp's own bubbletea TUI exits with "could not open TTY").
+    # The desktop spec hands terminal-wrapping to the launching environment,
+    # so do that: run the Exec line inside foot instead of bare.
+    if [[ $(desktop_wants_terminal "$file") == true ]]; then
+      setsid -f uwsm-app -- foot -e $exec_line $args </dev/null >/dev/null
+      return
+    fi
     # Unquoted on purpose, both of them: the Exec line and the user's args are
     # meant as words (this is the user's own local config, not external input).
     setsid -f uwsm-app -- $exec_line $args </dev/null >/dev/null
