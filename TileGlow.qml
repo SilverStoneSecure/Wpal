@@ -5,6 +5,7 @@ import qs.Commons
 // `hovered` is true. Parent it to the tile and let it fill it.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   property color glowColor: Color.accent
   property bool hovered: false

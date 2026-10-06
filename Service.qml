@@ -20,6 +20,7 @@ import "Model.js" as Model
 // BarWidget.qml's pushSettings().
 Item {
   id: service
+  property string moduleName: "io.github.silverstone.wpal"
 
   property var settings: ({})
 

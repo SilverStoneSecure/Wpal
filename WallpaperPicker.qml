@@ -21,6 +21,7 @@ import qs.Ui
 // matching coredumps).
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   property string folder: Quickshell.env("HOME")
   property bool pickFiles: true

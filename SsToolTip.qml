@@ -17,6 +17,7 @@ import qs.Ui
 // Drop-in for PanelToolTip: `text`, `fontSize`, `visible` behave the same.
 PanelToolTip {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   // Narrower than any of this plugin's panels, so a wrapped tooltip still
   // fits whichever one it pops up in.

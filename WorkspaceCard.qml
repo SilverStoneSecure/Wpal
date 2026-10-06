@@ -10,6 +10,7 @@ import "Model.js" as Model
 // Clicking it opens the customize dialog for that workspace.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   required property int workspaceId
   // Omarchy Default shows one card standing for the whole desktop, so it

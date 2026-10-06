@@ -11,6 +11,7 @@ import qs.Ui
 // the control that opened it.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   required property int workspaceId
   property color foreground: Color.foreground

@@ -18,6 +18,7 @@ import "Model.js" as Model
 // launcher never sits without an earlier one.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   required property int workspaceId
   // 0-based slot into the workspace's panes; the title shows it 1-based.

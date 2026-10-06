@@ -14,6 +14,7 @@ import "Model.js" as Model
 // Launcher" deletes the slot outright and renumbers everything after it.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   required property int workspaceId
   property var cfg: ({ background: { mode: "default", path: "" }, panes: [], autoLaunchEnabled: true })

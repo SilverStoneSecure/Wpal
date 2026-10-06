@@ -5,6 +5,7 @@ import qs.Commons
 // rects: one [x, y, w, h] (0..1 units) per window, in launch order.
 Item {
   id: root
+  property string moduleName: "io.github.silverstone.wpal"
 
   property var rects: []
   property color lineColor: Color.foreground
