@@ -37,7 +37,7 @@ except FileNotFoundError:
     sys.exit(0)
 ws = {}
 for entry in d.get("bar", {}).get("layout", {}).get("right", []):
-    if entry.get("id") == "silverstone.wpal":
+    if entry.get("id") == "io.github.silverstone.wpal":
         ws = entry.get("workspaces", {})
 for n in range(1, 11):
     panes = ws.get(str(n), {}).get("panes", [])
@@ -77,7 +77,7 @@ _harness_setup_once() {
   mkdir -p "$TEST_HOME/.config/omarchy/plugins"
   mkdir -p "$TEST_HOME/.local/state/omarchy/current/theme/backgrounds"
 
-  ln -sfn "$WPAL_REPO" "$TEST_HOME/.config/omarchy/plugins/silverstone.wpal"
+  ln -sfn "$WPAL_REPO" "$TEST_HOME/.config/omarchy/plugins/io.github.silverstone.wpal"
 
   # Opt-in: reproduce SilverAsus's exact bug class -- a bar.id pointing at a
   # replacement bar (made via `omarchy plugin clone omarchy.bar --edit`)
@@ -100,7 +100,7 @@ import json, sys
 out = sys.argv[1]
 with open("/usr/share/omarchy/config/omarchy/shell.json") as f:
     d = json.load(f)
-d["bar"]["layout"]["right"].append({"id": "silverstone.wpal"})
+d["bar"]["layout"]["right"].append({"id": "io.github.silverstone.wpal"})
 if "${WPAL_TEST_REPLACEMENT_BAR:-0}" == "1":
     d["bar"]["id"] = "wpaltest.bar"
 with open(out, "w") as f:
@@ -251,7 +251,7 @@ harness_shell_json() {
 import json
 d = json.load(open('$TEST_HOME/.config/omarchy/shell.json'))
 for entry in d.get('bar', {}).get('layout', {}).get('right', []):
-    if entry.get('id') == 'silverstone.wpal':
+    if entry.get('id') == 'io.github.silverstone.wpal':
         print(json.dumps(entry))
 " 2>/dev/null
 }

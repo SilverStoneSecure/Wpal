@@ -35,7 +35,7 @@ real desktop, settings, or wallpaper.
 
 ## Scenarios so far
 
-- `fresh-install` — boots from a bare `{"id": "silverstone.wpal"}` entry,
+- `fresh-install` — boots from a bare `{"id": "io.github.silverstone.wpal"}` entry,
   confirms `globalOverride` seeds correctly with no clicks needed.
 - `escape-cascade` — opens the per-workspace editor, double-taps Escape,
   confirms the panel closes in exactly 2 presses (regression test for the

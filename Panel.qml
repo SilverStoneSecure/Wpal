@@ -28,8 +28,8 @@ import "Model.js" as Model
 // -- Service.qml only reads.
 Panel {
   id: root
-  moduleName: "silverstone.wpal"
-  ipcTarget: "silverstone.wpal"
+  moduleName: "io.github.silverstone.wpal"
+  ipcTarget: "io.github.silverstone.wpal"
   manageIpc: false
 
   property var anchorItem: null

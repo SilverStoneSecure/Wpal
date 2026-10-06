@@ -16,7 +16,7 @@ import "Model.js" as Model
 // just one hop further.
 BarWidget {
   id: root
-  moduleName: "silverstone.wpal"
+  moduleName: "io.github.silverstone.wpal"
 
   // Omarchy only grants serviceFor() a working facade under the trusted
   // stock bar (omarchy.bar) -- any replacement bar (e.g. a clone made via

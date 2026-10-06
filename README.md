@@ -12,7 +12,7 @@ plugin.
 omarchy plugin add https://github.com/SilverStoneSecure/Wpal.git --enable
 ```
 
-- **id**: `silverstone.wpal`
+- **id**: `io.github.silverstone.wpal`
 - **kinds**: `service`, `bar-widget`
 - **license**: MIT
 
@@ -30,7 +30,7 @@ per workspace. Click a card to configure that workspace:
 - **Clone** a workspace's whole setup onto another one.
 
 Settings live in the plugin's own entry in `~/.config/omarchy/shell.json`
-(`bar.layout.right`, id `silverstone.wpal`) — the same place every Omarchy
+(`bar.layout.right`, id `io.github.silverstone.wpal`) — the same place every Omarchy
 bar widget keeps its config.
 
 ## What Wpal does on your system
@@ -48,10 +48,15 @@ bar widget keeps its config.
   wallpaper cache folder it's told to use; doesn't touch Hyprland, theme, or
   other plugins' config.
 
+## Dependencies
+
+Beyond Omarchy/Hyprland itself, the scripts shell out to: `jq`, `hyprctl`,
+`curl`, `gtk-launch`, `uwsm-app`.
+
 ## Remove
 
 ```bash
-omarchy plugin remove silverstone.wpal
+omarchy plugin remove io.github.silverstone.wpal
 ```
 
 Removes the plugin and its `shell.json` entry (every workspace's configured
