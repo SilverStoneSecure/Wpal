@@ -45,36 +45,45 @@ Panel {
   //
   // Safety net, added 2026-10-06 after this cost a real desktop its data:
   // none of this file's write paths ever intend to remove `workspaces`
-  // outright, so a mutated `next` that ends up with no workspaces at all
-  // while some OTHER field is already set (meaning this plainly isn't a
-  // brand-new, never-configured entry) is almost certainly built from a
-  // `root.settings` snapshot that hadn't caught up to a recent restart/
-  // reload yet -- not a deliberate clear. Refuse that write instead of
-  // silently persisting the loss; the next real settings push lets the same
-  // action succeed safely. A genuinely fresh install (root.settings === {})
-  // is unaffected: `looksEstablished` is false, so the seed write through.
+  // outright, so a mutated `next` with no workspaces at all while workspace
+  // data exists is almost certainly built from a `root.settings` snapshot
+  // that hadn't caught up to a recent restart/reload yet -- not a deliberate
+  // clear. Refuse that write instead of silently persisting the loss; the
+  // next real settings push lets the same action succeed safely.
+  //
+  // "Workspace data exists" is checked against what is actually stored --
+  // the entry in shell.json on disk -- and against any settings push this
+  // session that carried workspaces. An entry without workspaces is a valid
+  // state (a fresh install after the globalOverride seed, or Default mode
+  // used without per-workspace setup); guessing from other fields such as
+  // `globalOverride` or `enabled` refused every write on those entries.
   function patchEntry(mutatorFn) {
-    // Checked BEFORE mutation -- `next` below necessarily carries whatever
-    // field this very call is about to set, so checking established-ness
-    // on the mutated object would make any call that sets e.g.
-    // `globalOverride` look "established" by its own write, blocking the
-    // legitimate first-ever seed on a brand-new install.
-    var before = root.settings || {}
-    var looksEstablished = before.enabled !== undefined || before.globalOverride !== undefined
-      || before.autoLaunchEnabled !== undefined || before.startupCustom !== undefined || before.poolFolder !== undefined
-      || (Util.isPlainObject(before.workspaces) && Object.keys(before.workspaces).length > 0)
-
     var next = Util.cloneJson(root.settings || {})
     mutatorFn(next)
 
-    var hasWorkspaces = Util.isPlainObject(next.workspaces) && Object.keys(next.workspaces).length > 0
-    if (!hasWorkspaces && looksEstablished) {
+    if (!Model.hasWorkspaceData(next) && root.workspaceDataStored()) {
       console.warn("silverstone: refused a settings write that would drop all workspace data (stale snapshot?) next=" + JSON.stringify(next))
       return false
     }
 
     if (root.bar && root.bar.shell) return root.bar.shell.updateEntryInline(root.moduleName, next)
     return false
+  }
+
+  function workspaceDataStored() {
+    if (root.service && root.service.sawWorkspaces) return true
+    return Model.hasWorkspaceData(Model.storedEntry(storedConfig.text(), root.moduleName))
+  }
+  // shell.json as stored, for the write guard above. reload() is
+  // asynchronous, so the view follows the file instead of re-reading it per
+  // write; blockLoading makes the first text() wait for the initial load.
+  FileView {
+    id: storedConfig
+    path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
+    blockLoading: true
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
   }
 
   // Defaults to Omarchy Default (false) the very first time this ever runs,
