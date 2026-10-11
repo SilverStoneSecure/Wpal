@@ -652,7 +652,13 @@ Item {
     service._bootBackgroundApplied = true
     evaluateWorkspace(service.focusedId)
   }
-  onSettingsChanged: service._applyBootBackgroundOnce()
+  // Whether any settings push this session carried workspace data. Panel's
+  // write guard refuses writes that would drop it (see Panel.patchEntry).
+  property bool sawWorkspaces: false
+  onSettingsChanged: {
+    if (Model.hasWorkspaceData(service.settings)) service.sawWorkspaces = true
+    service._applyBootBackgroundOnce()
+  }
 
   Component.onCompleted: {
     console.log("silverstone: Service.qml instantiated")

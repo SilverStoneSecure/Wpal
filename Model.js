@@ -299,3 +299,26 @@ function migrateSettings(raw) {
   }
   return next
 }
+
+// ---- settings-write guard ----------------------------------------------
+// Whether a settings object carries any per-workspace configuration.
+function hasWorkspaceData(settings) {
+  var ws = settings ? settings.workspaces : null
+  return !!ws && typeof ws === "object" && !Array.isArray(ws) && Object.keys(ws).length > 0
+}
+
+// This plugin's entry as stored in shell.json text: a bar layout entry, or a
+// top-level `plugins` entry, matched by id the same way updateEntryInline
+// does. null when the text doesn't parse or holds no such entry.
+function storedEntry(text, id) {
+  var config
+  try { config = JSON.parse(String(text || "")) } catch (e) { return null }
+  if (!config || typeof config !== "object") return null
+  var layout = config.bar && config.bar.layout ? config.bar.layout : {}
+  var lists = [layout.left, layout.center, layout.right, config.plugins]
+  for (var i = 0; i < lists.length; i++) {
+    var list = Array.isArray(lists[i]) ? lists[i] : []
+    for (var j = 0; j < list.length; j++) if (list[j] && list[j].id === id) return list[j]
+  }
+  return null
+}
