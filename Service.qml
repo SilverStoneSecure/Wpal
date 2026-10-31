@@ -74,6 +74,23 @@ Item {
   property var randomCache: ({})   // { "3": "/abs/path.jpg" } -- cleared on theme change
   property var lastLaunchAt: ({})  // { "3": <ms epoch> } -- debounce
 
+  // Which workspace launchProc is currently running a script for, or -1 when
+  // idle. launchProc is ONE shared Process for every workspace, and the
+  // script's own wait budget is up to 20s PER PANE on slow hardware (a T420:
+  // see workspace-autolaunch.sh's wait_ticks comment) -- far longer than the
+  // 3s debounce above, which only catches rapid double-fires, not "the user
+  // flicked back to this still-loading workspace 10s later". Without this,
+  // a workspace that's genuinely still empty (because its apps haven't
+  // mapped a window yet) re-triggers a brand new launch on every focus
+  // change, and because launchProc is shared, a second launch for another
+  // workspace can stomp the first one's `command` before it ever runs.
+  // Found 2026-10-18 via journalctl on a fresh T420 install: workspace 2
+  // fired "launching 2 pane(s)" four times in 25s, one Nautilus instance
+  // crashed outright, and the end state was chromium stranded on the wrong
+  // workspace with neither configured target actually launched where
+  // configured.
+  property int launchInProgressId: -1
+
   // Whether the panel is meant to be open right now, mirrored here (not on
   // the bar widget) because a settings write that the bar host can't patch
   // in place destroys and recreates the bar-widget/panel instance -- this
@@ -494,6 +511,11 @@ Item {
   function launchWorkspace(id) {
     var active = service.launchablePanes(id)  // re-check: config/windows may have changed since evaluateWorkspace
     if (!active) return
+    // launchProc is shared across every workspace and a run can legitimately
+    // take well over the 3s debounce below (see launchInProgressId above) --
+    // if one is already in flight, for this workspace or any other, let it
+    // finish instead of stomping its command with a second one.
+    if (service.launchInProgressId !== -1) return
 
     var now = Date.now()
     var last = service.lastLaunchAt[String(id)] || 0
@@ -514,6 +536,7 @@ Item {
     var fs = cfg.fullScreenIndex
     if (fs >= active.length) fs = -1
     launchProc.command = ["bash", service.scriptPath, String(id), payload, String(layout), String(fs)]
+    service.launchInProgressId = id
     launchProc.running = true
   }
 
@@ -586,6 +609,9 @@ Item {
         if (t) console.warn("silverstone: launch stderr: " + t)
       }
     }
+    // Frees the in-progress guard above the moment the script actually
+    // exits, however long that took -- not on any fixed timer.
+    onRunningChanged: if (!running) service.launchInProgressId = -1
   }
 
   function evaluateWorkspace(id) {
