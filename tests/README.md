@@ -1,7 +1,7 @@
-# Wpal click-through tests
+# wpal click-through tests
 
 Automated replacement for manually uninstalling/reinstalling and clicking
-through Wpal to check it still behaves. Runs the real plugin inside a
+through wpal to check it still behaves. Runs the real plugin inside a
 throwaway, isolated Hyprland+Quickshell instance (the
 `ss-remote-screen-control` recipe in SilverStone-Hub) — nothing touches your
 real desktop, settings, or wallpaper.

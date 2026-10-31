@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Entry point for Wpal's click-through test suite.
+# Entry point for wpal's click-through test suite.
 # Usage: tests/run.sh [scenario-name|all]
 # No args = all. Requires ss-onboard-remote-screen-control to have been run
 # on this machine (see lib/calibration/README.md).

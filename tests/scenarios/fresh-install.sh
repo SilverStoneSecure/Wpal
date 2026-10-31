@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Replaces the manual "uninstall, clone fresh, click through" check: boots
-# Wpal from a genuinely empty shell.json entry and asserts the one-time
+# wpal from a genuinely empty shell.json entry and asserts the one-time
 # globalOverride seed lands correctly, with no clicks needed.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"

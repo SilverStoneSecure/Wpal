@@ -92,7 +92,7 @@ Panel {
   // foreground: with a transparent bar it becomes a wallpaper-adaptive tone
   // (Bar.qml `useTransparentForeground`), which is right on the bar and wrong
   // inside a popup. With a transparent bar, every built-in panel was drawing
-  // its content in the theme foreground while Wpal drifted with the
+  // its content in the theme foreground while wpal drifted with the
   // wallpaper. Same definition the built-ins use for `contentForeground`.
   readonly property color contentForeground: root.bar ? root.bar.foreground : Color.foreground
   // Independent of wallpaper mode above -- a global kill switch for every
@@ -424,7 +424,7 @@ Panel {
     // switchPanelFrom all identify a panel by the item mounted in the slot.
     // requestPopout closes whoever held it via closeForPopoutSwitch, which
     // BarWidget already forwards to us; we simply never registered before,
-    // so Wpal and a built-in could sit open on top of each other.
+    // so wpal and a built-in could sit open on top of each other.
     if (root.bar) {
       if (root.opened) root.bar.requestPopout(root.barIdentity)
       else if (root.bar.activePopout === root.barIdentity) root.bar.releasePopout(root.barIdentity)
@@ -1313,7 +1313,7 @@ Panel {
 
             Text {
               textFormat: Text.PlainText
-              text: "Wpal"
+              text: "wpal"
               color: root.contentForeground
               font.family: Style.font.family
               // Same heading size as li, the picker and the launcher panel.
@@ -1361,7 +1361,7 @@ Panel {
               id: defaultModeButton
               // HALF THE ROW EACH. `fillWidth` alone hands each
               // button its own text width first and only shares out the
-              // SURPLUS, so "Omarchy" came out wider than "Wpal". Zeroing the
+              // SURPLUS, so "Omarchy" came out wider than "wpal". Zeroing the
               // preferred width makes the split even and lets each label
               // centre in its own half.
               Layout.fillWidth: true
@@ -1389,7 +1389,7 @@ Panel {
               // The other half -- see its twin above.
               Layout.fillWidth: true
               Layout.preferredWidth: 0
-              text: "Wpal"
+              text: "wpal"
               selected: root.masterEnabled
               bordered: true
               foreground: root.contentForeground
@@ -1581,7 +1581,7 @@ Panel {
                 }
                 // Omarchy Default mode is Omarchy's wallpaper, so the click
                 // hands over to OMARCHY'S OWN picker rather than ours. Our
-                // picker is for Wpal's per-workspace backgrounds.
+                // picker is for wpal's per-workspace backgrounds.
                 if (root.pendingBrowse) root.cancelBrowse()
                 root.openOmarchyBackgroundPicker()
               }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# One-time, idempotent migration of Wpal's bar.layout.right entry key in
+# One-time, idempotent migration of wpal's bar.layout.right entry key in
 # shell.json from an old plugin id to a new one. Needed because the host
 # matches bar.layout.right entries to an installed plugin by exact string
 # equality on `id` -- changing manifest.json's id alone leaves the bar icon

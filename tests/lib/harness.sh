@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared setup/teardown for Wpal's isolated click-through tests.
+# Shared setup/teardown for wpal's isolated click-through tests.
 # Implements the ss-remote-screen-control recipe (nested Hyprland + Quickshell,
 # throwaway HOME) so scenarios only need to describe what to click and assert.
 set -euo pipefail
@@ -226,7 +226,7 @@ harness_escape() { ydotool key 1:1 1:0; }
 harness_enter() { ydotool key 28:1 28:0; }
 harness_key_down() { ydotool key 108:1 108:0; }
 
-# Drives Wpal's own IPC handler (BarWidget.qml, target "silverstone") --
+# Drives wpal's own IPC handler (BarWidget.qml, target "silverstone") --
 # real plugin code, not a test-only backdoor, except for isOpen() which was
 # added alongside this suite for state assertions.
 # -i filters by the CALLER's current display, and --any-display (a DIFFERENT

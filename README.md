@@ -1,15 +1,15 @@
-# Wpal
+# wpal
 
 Per-workspace background (default, custom, or random) and auto-launched
 pane layouts for empty workspaces — an [Omarchy](https://omarchy.org) bar
 plugin.
 
-![Wpal panel](preview.png)
+![wpal panel](preview.png)
 
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/SilverStoneSecure/Wpal.git --enable
+omarchy plugin add https://github.com/SilverStoneSecure/wpal.git --enable
 ```
 
 - **id**: `io.github.silverstone.wpal`
@@ -33,7 +33,7 @@ Settings live in the plugin's own entry in `~/.config/omarchy/shell.json`
 (`bar.layout.right`, id `io.github.silverstone.wpal`) — the same place every Omarchy
 bar widget keeps its config.
 
-## What Wpal does on your system
+## What wpal does on your system
 
 - **Network:** only when a workspace's background pool is set to an http(s)
   URL — `scripts/fetch-wallpaper-repo.sh` does a single `curl` of that URL

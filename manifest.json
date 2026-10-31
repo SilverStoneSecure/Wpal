@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "io.github.silverstone.wpal",
-  "name": "Wpal",
-  "version": "0.9.1",
+  "name": "wpal",
+  "version": "0.10.0",
   "author": "SilverStone",
   "license": "MIT",
-  "homepage": "https://github.com/SilverStoneSecure/Wpal",
+  "homepage": "https://github.com/SilverStoneSecure/wpal",
   "description": "Per-workspace Background (default/custom/random) and auto-launched pane layouts for empty workspaces.",
   "kinds": ["service", "bar-widget"],
   "entryPoints": {
@@ -13,7 +13,7 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Wpal",
+    "displayName": "wpal",
     "description": "Per-workspace Background + auto-launch pane layouts.",
     "category": "Workspace",
     "defaultSection": "right",
